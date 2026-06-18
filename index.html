@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Murder at Veridian Isle</title>
+  <meta name="description" content="Murder at Veridian Isle: an interactive, evidence-driven murder mystery set on a billionaire's private island. Examine the scene, collect clues, build your case, and name the killer." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,500&family=EB+Garamond:ital@0;1&family=Inter:wght@400;500;600;700&family=Special+Elite&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="grain" aria-hidden="true"></div>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <header id="topbar" hidden>
+    <button class="brand" data-nav="hub" title="Return to the Case File">
+      <span class="brand-mark">◈</span>
+      <span class="brand-name">VERIDIAN ISLE</span>
+    </button>
+    <nav id="mainnav">
+      <button data-nav="hub">Case File</button>
+      <button data-nav="notebook">Notebook <span id="evcount" class="pill">0</span></button>
+      <button data-nav="board">Deduction</button>
+      <button data-nav="team">Team</button>
+      <button data-nav="rules">Guide</button>
+    </nav>
+    <button id="accuseBtn" class="accuse-btn" data-nav="accuse" disabled title="Collect more evidence before accusing">
+      Make an Accusation
+    </button>
+  </header>
+
+  <main id="app" aria-live="polite"></main>
+
+  <footer id="credits">
+    <span>Murder at Veridian Isle · An original interactive mystery</span>
+    <span class="dot">·</span>
+    <button class="linklike" data-nav="team">Made by Kian, Andrew, Vivaan &amp; Charlie</button>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
