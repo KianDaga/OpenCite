@@ -6,6 +6,7 @@ import NUMERIC from './fixtures/test-numeric.csl?raw';
 import DEPENDENT from './fixtures/test-dependent.csl?raw';
 import LOCALE from './fixtures/locales-en-US.xml?raw';
 import { db } from '@/db/dexieStore';
+import { formatNameForDisplay } from '@/lib/derive';
 import {
   CSLFetchError,
   clearEngineCache,
@@ -14,6 +15,7 @@ import {
   preloadLocales,
   renderBibliography,
   renderCitation,
+  renderCitations,
   resolveStyle,
   toPlainText,
 } from '@/citation';
@@ -245,5 +247,54 @@ describe('response validation', () => {
 
     const locales = await preloadLocales(['en-US']);
     expect(locales.get('en-US')).toContain('<locale');
+  });
+});
+
+describe('list labels', () => {
+  it('numbers every reference, not just the first', async () => {
+    // Rendered one at a time, a numeric style calls each reference "[1]",
+    // because citeproc numbers from whatever is registered at the time.
+    mockNetwork(DEFAULT_FILES);
+    const labels = await renderCitations(ITEMS, 'test-numeric', 'en-US');
+
+    expect(labels.get('a')).toBe('[1]');
+    expect(labels.get('b')).toBe('[2]');
+  });
+
+  it('labels author-date styles per reference', async () => {
+    mockNetwork(DEFAULT_FILES);
+    const labels = await renderCitations(ITEMS, 'test-author-date', 'en-US');
+
+    expect(labels.get('a')).toBe('(Arendt, 1958)');
+    expect(labels.get('b')).toBe('(Vaswani, 2017)');
+  });
+
+  it('returns nothing for an empty list rather than starting an engine', async () => {
+    mockNetwork(DEFAULT_FILES);
+    expect((await renderCitations([], 'test-numeric', 'en-US')).size).toBe(0);
+  });
+});
+
+describe('display names', () => {
+  it('reads in natural order, not index order', () => {
+    // The search index stores "Arendt Hannah" so either half matches; showing
+    // that to a reader is simply the name backwards.
+    expect(formatNameForDisplay({ family: 'Arendt', given: 'Hannah' })).toBe('Hannah Arendt');
+    expect(formatNameForDisplay({ family: 'Kuhn', given: 'Thomas S.' })).toBe('Thomas S. Kuhn');
+  });
+
+  it('keeps particles with the family name and suffixes last', () => {
+    expect(
+      formatNameForDisplay({ family: 'Beethoven', given: 'Ludwig', 'non-dropping-particle': 'van' }),
+    ).toBe('Ludwig van Beethoven');
+    expect(formatNameForDisplay({ family: 'King', given: 'Martin Luther', suffix: 'Jr.' })).toBe(
+      'Martin Luther King Jr.',
+    );
+  });
+
+  it('passes an organisation through untouched', () => {
+    expect(formatNameForDisplay({ literal: 'World Health Organization' })).toBe(
+      'World Health Organization',
+    );
   });
 });

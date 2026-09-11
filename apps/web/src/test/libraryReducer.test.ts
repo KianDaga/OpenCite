@@ -68,3 +68,25 @@ describe('libraryReducer', () => {
     expect(s).toBe(initialLibraryState);
   });
 });
+
+describe('view switching', () => {
+  it('leaves the trash when a folder is chosen', () => {
+    // The trash is global; staying in it after a folder click would ignore
+    // what the user just asked for.
+    let s = libraryReducer(initialLibraryState, { type: 'set-view', view: 'trash' });
+    s = libraryReducer(s, { type: 'select-folder', folderId: 'f1' });
+    expect(s.view).toBe('references');
+  });
+
+  it('leaves the trash when a project is chosen', () => {
+    let s = libraryReducer(initialLibraryState, { type: 'set-view', view: 'trash' });
+    s = libraryReducer(s, { type: 'select-project', projectId: 'p2' });
+    expect(s.view).toBe('references');
+  });
+
+  it('stays on the bibliography when folders change', () => {
+    let s = libraryReducer(initialLibraryState, { type: 'set-view', view: 'bibliography' });
+    s = libraryReducer(s, { type: 'select-folder', folderId: 'f1' });
+    expect(s.view).toBe('bibliography');
+  });
+});

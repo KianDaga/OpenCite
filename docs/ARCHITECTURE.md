@@ -71,6 +71,16 @@ opencite/
 │       ├── styles/globals.css      design tokens + .csl-entry rules
 │       └── test/                   reducer + schema tests
 │
+│       ├── components/
+│       │   ├── layout/AppShell.tsx     shell, tabs, ⌘Z, phone drawer
+│       │   ├── sidebar/Sidebar.tsx     projects, folder tree, drop targets
+│       │   ├── table/CitationTable.tsx the working list
+│       │   ├── table/Toolbar.tsx       search, filters, sort, bulk actions
+│       │   ├── table/TrashView.tsx     restore or empty
+│       │   ├── dialogs/ManualEntryDialog.tsx
+│       │   ├── dialogs/StylePickerDialog.tsx
+│       │   ├── dialogs/fields.tsx      name and date editors
+│       │   └── ui/                     button, input, dialog, menu, toaster
 │       ├── lookup/
 │       │   ├── client.ts           API calls + metadataCache
 │       │   └── useLookup.ts        Autocite state machine
@@ -83,9 +93,8 @@ opencite/
 │       ├── components/Bibliography.tsx
 │       └── scripts/fetch-styles.mjs   vendor styles for offline use
 │
-│   ── added in later steps ──
-│       ├── components/             Step 4: Sidebar, CitationTable, …
-│       └── export/                 Step 5: docx.ts, bibtex.ts, ris.ts
+│   ── added in Step 5 ──
+│       └── export/                 docx.ts, bibtex.ts, ris.ts
 │
 └── apps/api/
     └── api/
@@ -331,7 +340,65 @@ disambiguated them into "2013a" and "2013b" — which reads as two different
 papers. Published identifiers (DOI, ISBN) are now checked as well, since a DOI
 is the same work however the reader arrived at it.
 
-## 7. What the later steps plug into
+## 7. The interface
+
+### Two views of one list
+
+References and Bibliography are tabs, not panes. They are the same data
+answering different questions — "what do I have" versus "what does it look
+like" — and their sort orders legitimately differ: the table follows whatever
+the reader chose, the bibliography follows what the style demands. A split view
+would halve both to show the same rows twice.
+
+Which view is open lives in the reducer rather than in component state,
+because the sidebar needs to reach it: clicking Trash switches the main pane.
+Picking a project or folder while in the trash returns to the reference list,
+since the trash is global and staying there would ignore the click.
+
+### The manual-entry form follows the type
+
+CSL has roughly eighty variables, and most are meaningless for any given type —
+a book has no issue number. So `lib/cslFields.ts` maps each type to the fields
+its styles actually read, and everything else stays under "More fields".
+Changing the type re-shapes the form but keeps what was already typed.
+
+Two field kinds get real editors rather than text boxes, because they are where
+hand-entered references go wrong:
+
+- **Names** are family/given, or a single `literal` for an organisation. A
+  toggle switches between them, because "World Health Organization" split into
+  a first and last name gets initialised into nonsense by every style.
+- **Dates** keep the precision they were given. `1998` stays `1998`; filling in
+  1 January would put a date in the citation that the source never claimed.
+
+### Rendering in-text labels needs the whole list
+
+citeproc assigns `citation-number` from the items currently registered, so a
+reference rendered on its own is always "[1]". The table therefore renders
+labels for every visible row in one pass — which is also what gives author-date
+styles their real disambiguation.
+
+The same distinction applies to names: the search index stores "Arendt Hannah"
+so that typing either half matches, and showing that string to a reader is
+simply the name backwards. Display uses a separate formatter.
+
+### Deletes, drags and undo
+
+Folders are drop targets and rows are draggable, which is the fastest way to
+file a pile of references. Dragging an unselected row moves that row; dragging
+a selected one moves the whole selection.
+
+Every delete raises a toast with an Undo, and ⌘Z works anywhere outside a text
+field — inside one it belongs to the field. Both are nearly free because
+deletes are soft: undo is a flag flip, not a restore from a history buffer.
+
+### Below `md` the sidebar becomes a drawer
+
+Hiding it entirely, as the first pass did, left no way to reach projects,
+folders or the trash on a phone. It opens from the header and closes as soon as
+a destination is chosen.
+
+## 8. What the last step plugs into
 
 Each remaining step attaches to a seam that already exists.
 

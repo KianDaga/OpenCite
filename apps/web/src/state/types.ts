@@ -10,7 +10,11 @@ import type { CitationSort, FolderRef } from '@opencite/shared';
  * surface (a paste, an import, a second browser tab) updates every view
  * without a store to keep in sync.
  */
+/** Which of the main panes is showing. */
+export type LibraryView = 'references' | 'bibliography' | 'trash';
+
 export interface LibraryUIState {
+  view: LibraryView;
   /** `undefined` until bootstrap picks the last-opened or first project. */
   activeProjectId: string | undefined;
   /** `undefined` = "All references"; `ROOT` = the Unfiled pseudo-folder. */
@@ -47,6 +51,7 @@ export type BootstrapStatus =
 export type LibraryAction =
   | { type: 'bootstrapped'; projectId: string | undefined }
   | { type: 'bootstrap-failed'; status: Extract<BootstrapStatus, { state: 'error' }> }
+  | { type: 'set-view'; view: LibraryView }
   | { type: 'select-project'; projectId: string | undefined }
   | { type: 'select-folder'; folderId: FolderRef | undefined }
   | { type: 'set-search'; search: string }
@@ -61,6 +66,7 @@ export type LibraryAction =
   | { type: 'close-dialog' };
 
 export const initialLibraryState: LibraryUIState = {
+  view: 'references',
   activeProjectId: undefined,
   activeFolderId: undefined,
   selectedIds: [],

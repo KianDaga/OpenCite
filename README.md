@@ -9,24 +9,24 @@ Built as an open alternative to MyBib and ZoteroBib.
 
 ## Status
 
-**Step 3 of 5 — it cites things now.** Paste a URL, DOI, ISBN or arXiv id and
-the metadata is fetched, cached and formatted into any CSL style. What is left
-is the real interface and the export formats.
+**Step 4 of 5 — it is an application.** Projects and folders in a sidebar, a
+reference table, one box that cites anything you paste, and a form for
+everything with no identifier to look up. Only the export formats are left.
 
 | Step | Scope                                                       | State |
 | ---- | ----------------------------------------------------------- | ----- |
 | 1    | Architecture, Dexie schema, state management                | done  |
 | 2    | citeproc-js integration, dynamic `.csl` fetching + caching  | done  |
 | 3    | Lookup APIs — URL scraping, Crossref, Open Library          | done  |
-| 4    | UI — sidebar, citation table, Autocite bar, manual entry    | next  |
-| 5    | Export — HTML, `.docx`, BibTeX, RIS                         | —     |
+| 4    | UI — sidebar, citation table, Autocite bar, manual entry    | done  |
+| 5    | Export — HTML, `.docx`, BibTeX, RIS                         | next  |
 
 ## Quick start
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173 — serves the lookup API too
-npm test             # 114 tests across all three workspaces
+npm test             # 132 tests across all three workspaces
 npm run typecheck
 ```
 

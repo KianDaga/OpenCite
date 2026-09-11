@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSLItem, Citation } from '@opencite/shared';
 import { useActiveProject, useCitations } from '@/state';
 import { CSLFetchError } from './styleRegistry';
-import { renderBibliography, renderCitation, type BibliographyResult } from './engine';
+import {
+  renderBibliography,
+  renderCitation,
+  renderCitations,
+  type BibliographyResult,
+} from './engine';
 
 /**
  * Formatting is asynchronous (the style may still be downloading) while
@@ -120,6 +125,47 @@ export function useCitationPreview(citation: Citation | undefined): string | nul
   }, [key, styleId, localeId]);
 
   return text;
+}
+
+/**
+ * In-text citations for every row currently shown, rendered in one pass.
+ *
+ * Per-row rendering would label every reference "[1]" under a numeric style,
+ * because citeproc numbers from the items registered at the time.
+ */
+export function useInTextCitations(items: Citation[]): Map<string, string> {
+  const project = useActiveProject();
+  const [labels, setLabels] = useState<Map<string, string>>(new Map());
+
+  const styleId = project?.styleId;
+  const localeId = project?.localeId;
+  const key = styleId && localeId ? signature(items, styleId, localeId) : null;
+
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  useEffect(() => {
+    if (!key || !styleId || !localeId) return;
+    let cancelled = false;
+
+    void renderCitations(
+      itemsRef.current.map((c) => c.csl),
+      styleId,
+      localeId,
+    )
+      .then((result) => {
+        if (!cancelled) setLabels(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLabels(new Map());
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [key, styleId, localeId]);
+
+  return labels;
 }
 
 /**

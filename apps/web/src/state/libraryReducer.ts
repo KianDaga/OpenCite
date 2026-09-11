@@ -18,11 +18,17 @@ export function libraryReducer(state: LibraryUIState, action: LibraryAction): Li
     case 'bootstrap-failed':
       return { ...state, status: action.status };
 
+    case 'set-view':
+      return { ...state, view: action.view };
+
     case 'select-project':
       if (action.projectId === state.activeProjectId) return state;
       // Switching projects invalidates every filter scoped to the old one.
       return {
         ...state,
+        // Leaving the trash when a project is chosen: the trash is global, so
+        // staying in it after picking a project would ignore the click.
+        view: state.view === 'trash' ? 'references' : state.view,
         activeProjectId: action.projectId,
         activeFolderId: undefined,
         selectedIds: [],
@@ -36,6 +42,7 @@ export function libraryReducer(state: LibraryUIState, action: LibraryAction): Li
     case 'select-folder':
       return {
         ...state,
+        view: state.view === 'trash' ? 'references' : state.view,
         activeFolderId: action.folderId,
         selectedIds: [],
         lastSelectedId: undefined,

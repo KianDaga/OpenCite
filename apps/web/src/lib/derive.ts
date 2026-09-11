@@ -8,10 +8,26 @@ import type { CSLItem, CSLName, Citation } from '@opencite/shared';
  * the projections can never drift from the payload they describe.
  */
 
+/**
+ * Name text for the search index. Order is irrelevant here — this exists so
+ * that typing either half of a name matches — so do not use it for display.
+ */
 export function displayName(name: CSLName): string {
   if (name.literal) return name.literal;
   const particle = name['non-dropping-particle'] ?? '';
   return [particle, name.family, name.given].filter(Boolean).join(' ').trim();
+}
+
+/**
+ * Name text for the reference list, in reading order: "Hannah Arendt", not
+ * "Arendt Hannah". Formatting inside a citation is citeproc's job and follows
+ * the style; this is only for OpenCite's own list.
+ */
+export function formatNameForDisplay(name: CSLName): string {
+  if (name.literal) return name.literal;
+  const particle = name['non-dropping-particle'] ?? '';
+  const family = [particle, name.family].filter(Boolean).join(' ');
+  return [name.given, family, name.suffix].filter(Boolean).join(' ').trim();
 }
 
 /** Family name of the first author — the primary bibliography sort key. */

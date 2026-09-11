@@ -12,7 +12,7 @@ import { openDatabase } from '@/db/dexieStore';
 import * as repo from '@/db/repositories';
 import { SETTING_KEYS, getSetting, setSetting } from '@/db/repositories/settings';
 import { initialLibraryState, libraryReducer } from './libraryReducer';
-import type { DialogState, LibraryUIState } from './types';
+import type { DialogState, LibraryUIState, LibraryView } from './types';
 
 /**
  * Two contexts, deliberately.
@@ -33,6 +33,7 @@ interface UndoEntry {
 
 export interface LibraryActions {
   // ---- Navigation & view state ----
+  setView(view: LibraryView): void;
   selectProject(projectId: string | undefined): void;
   selectFolder(folderId: FolderRef | undefined): void;
   setSearch(search: string): void;
@@ -159,6 +160,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
     return {
       // ---- Navigation & view state ----
+      setView: (view) => dispatch({ type: 'set-view', view }),
       selectProject: (projectId) => dispatch({ type: 'select-project', projectId }),
       selectFolder: (folderId) => dispatch({ type: 'select-folder', folderId }),
       setSearch: (search) => dispatch({ type: 'set-search', search }),

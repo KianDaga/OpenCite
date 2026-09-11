@@ -212,6 +212,36 @@ export async function renderCitation(
   return handle.engine.makeCitationCluster([{ id: item.id, ...options }]).trim();
 }
 
+/**
+ * In-text citations for a whole list, rendered together.
+ *
+ * Rendering one reference at a time is wrong for numeric styles: citeproc
+ * assigns `citation-number` from the items currently registered, so every
+ * reference rendered alone comes out as "[1]". Registering the full set first
+ * gives each its real number, and author-date styles get their disambiguation
+ * (2013a / 2013b) for the same reason.
+ */
+export async function renderCitations(
+  items: CSLItem[],
+  styleId: string,
+  localeId: string,
+): Promise<Map<string, string>> {
+  const labels = new Map<string, string>();
+  if (items.length === 0) return labels;
+
+  const handle = await getEngine(styleId, localeId);
+
+  handle.items.clear();
+  for (const item of items) handle.items.set(item.id, item);
+  handle.engine.updateItems(items.map((i) => i.id));
+
+  for (const item of items) {
+    labels.set(item.id, handle.engine.makeCitationCluster([{ id: item.id }]).trim());
+  }
+
+  return labels;
+}
+
 /** Discards cached engines — call after a style's XML is refreshed. */
 export function clearEngineCache(): void {
   engines.clear();
