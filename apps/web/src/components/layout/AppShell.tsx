@@ -1,18 +1,10 @@
 import { useEffect, useState } from 'react';
-import {
-  Check,
-  Copy,
-  Download,
-  Menu as MenuIcon,
-  Quote,
-  Settings2,
-  Table2,
-  X,
-} from 'lucide-react';
-import { toPlainText } from '@/citation';
+import { Check, Copy, Quote, Table2, X } from 'lucide-react';
+import { toPlainText, useBibliography } from '@/citation';
 import { AutociteBar } from '@/components/AutociteBar';
 import { BibliographyView } from '@/components/Bibliography';
 import { ExportDialog } from '@/components/dialogs/ExportDialog';
+import { ImportDialog } from '@/components/dialogs/ImportDialog';
 import { ManualEntryDialog } from '@/components/dialogs/ManualEntryDialog';
 import { StylePickerDialog } from '@/components/dialogs/StylePickerDialog';
 import { Sidebar } from '@/components/sidebar/Sidebar';
@@ -21,10 +13,11 @@ import { Toolbar } from '@/components/table/Toolbar';
 import { TrashView } from '@/components/table/TrashView';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toaster';
-import { findStyle } from '@/citation';
-import { useBibliography } from '@/citation';
-import { useActiveProject, useCitations, useLibraryActions, useLibraryState } from '@/state';
+import { useAppearance, useCitations, useLibraryActions, useLibraryState, useThemeEffect } from '@/state';
 import { cn } from '@/lib/utils';
+import { FormatBar } from './FormatBar';
+import { Header } from './Header';
+import { StatusBar } from './StatusBar';
 
 /**
  * The application layout: projects on the left, the working list on the right.
@@ -34,29 +27,24 @@ import { cn } from '@/lib/utils';
  * does it look like" — and a split view would halve both.
  */
 export function AppShell() {
-  const project = useActiveProject();
   const citations = useCitations();
   const actions = useLibraryActions();
-  const { selectedIds, view } = useLibraryState();
+  const { selectedIds, view, sidebarCollapsed } = useLibraryState();
+  const { theme } = useAppearance();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  useUndoShortcut();
-
-  const style = project ? findStyle(project.styleId) : undefined;
+  useThemeEffect(theme);
+  useHistoryShortcuts();
 
   return (
     <div className="flex h-full min-h-0">
-      <Sidebar className="hidden md:flex" />
+      <Sidebar className={cn('hidden md:flex', sidebarCollapsed && 'md:hidden')} />
 
       {/* Below md the sidebar is a drawer — without it there is no way to
           reach projects, folders or the trash on a phone at all. */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setDrawerOpen(false)}
-            aria-hidden
-          />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDrawerOpen(false)} aria-hidden />
           <div className="relative z-10 flex h-full">
             <Sidebar className="flex bg-background" onNavigate={() => setDrawerOpen(false)} />
             <Button
@@ -73,44 +61,22 @@ export function AppShell() {
       )}
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-ml-1 md:hidden"
-            aria-label="Open projects and folders"
-            onClick={() => setDrawerOpen(true)}
-          >
-            <MenuIcon className="h-4 w-4" />
-          </Button>
+        <Header onOpenDrawer={() => setDrawerOpen(true)} />
 
-          <h1 className="mr-auto truncate text-base font-semibold tracking-tight">
-            {project?.name ?? 'OpenCite'}
-          </h1>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => actions.openDialog({ kind: 'style-picker' })}
-          >
-            <Settings2 className="h-3.5 w-3.5" />
-            <span className="max-w-[12rem] truncate">
-              {style?.shortTitle ?? project?.styleId ?? 'Style'}
-            </span>
-          </Button>
-
-          <Button
-            size="sm"
-            disabled={citations.length === 0}
-            onClick={() => actions.openDialog({ kind: 'export' })}
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export
-          </Button>
-        </header>
-
-        <div className="border-b border-border px-4 py-3">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3">
+          {citations.length === 0 && view !== 'trash' && (
+            <p className="text-center font-serif text-lg font-medium tracking-tight sm:text-xl">
+              <span aria-hidden className="mx-2 text-muted-foreground">
+                ↓
+              </span>
+              Generate your first citation
+              <span aria-hidden className="mx-2 text-muted-foreground">
+                ↓
+              </span>
+            </p>
+          )}
           <AutociteBar />
+          <FormatBar />
         </div>
 
         <div className="flex items-center gap-1 border-b border-border px-3">
@@ -135,11 +101,14 @@ export function AppShell() {
         )}
         {view === 'bibliography' && <BibliographyPanel />}
         {view === 'trash' && <TrashView />}
+
+        <StatusBar />
       </main>
 
       <ManualEntryDialog />
       <StylePickerDialog />
       <ExportDialog />
+      <ImportDialog />
 
       {/* Announced so the count is available without watching the toolbar. */}
       <p className="sr-only" aria-live="polite">
@@ -217,9 +186,7 @@ function BibliographyPanel() {
         <Button size="sm" variant="ghost" disabled={entries.length === 0} onClick={() => void copy(false)}>
           Copy as plain text
         </Button>
-        <span className="ml-auto text-xs text-muted-foreground">
-          {state.result?.styleTitle}
-        </span>
+        <span className="ml-auto text-xs text-muted-foreground">{state.result?.styleTitle}</span>
       </div>
 
       <div className="px-6 py-6">
@@ -229,25 +196,33 @@ function BibliographyPanel() {
   );
 }
 
-/** ⌘Z / Ctrl+Z anywhere outside a text field undoes the last delete. */
-function useUndoShortcut() {
+/**
+ * ⌘Z and ⇧⌘Z anywhere outside a text field. Inside one they belong to the
+ * field's own history.
+ */
+function useHistoryShortcuts() {
   const actions = useLibraryActions();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'z' || !(event.metaKey || event.ctrlKey) || event.shiftKey) return;
+      if (event.key.toLowerCase() !== 'z' || !(event.metaKey || event.ctrlKey)) return;
 
       const target = event.target as HTMLElement | null;
       const typing =
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.isContentEditable === true;
-      // Inside a field, ⌘Z belongs to the field's own undo.
       if (typing) return;
-      if (!actions.canUndo()) return;
 
-      event.preventDefault();
-      void actions.undo();
+      if (event.shiftKey) {
+        if (!actions.canRedo()) return;
+        event.preventDefault();
+        void actions.redo();
+      } else {
+        if (!actions.canUndo()) return;
+        event.preventDefault();
+        void actions.undo();
+      }
     };
 
     window.addEventListener('keydown', onKeyDown);

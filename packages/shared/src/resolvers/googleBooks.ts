@@ -1,6 +1,7 @@
-import type { CSLItem, LookupResult } from '@opencite/shared';
-import { fetchJSON } from '../http';
-import { compactCSL, parseDate, parseName } from '../csl';
+import type { CSLItem } from '../csl';
+import type { LookupResult } from '../api';
+import type { JSONFetcher, ResolverOptions } from './fetcher';
+import { compactCSL, parseDate, parseName } from '../cslBuild';
 
 /**
  * Google Books — the ISBN fallback.
@@ -46,8 +47,13 @@ export function googleBooksToCSL(info: VolumeInfo, isbn: string, id: string): CS
   });
 }
 
-export async function resolveGoogleBooksISBN(isbn: string): Promise<LookupResult | undefined> {
-  const key = process.env.GOOGLE_BOOKS_API_KEY;
+export async function resolveGoogleBooksISBN(
+  isbn: string,
+  fetchJSON: JSONFetcher,
+  options: ResolverOptions = {},
+): Promise<LookupResult | undefined> {
+  // `process` does not exist in a browser, so the key is passed in.
+  const key = options.googleBooksApiKey;
   const url =
     `${API}?q=isbn:${encodeURIComponent(isbn)}` + (key ? `&key=${encodeURIComponent(key)}` : '');
 

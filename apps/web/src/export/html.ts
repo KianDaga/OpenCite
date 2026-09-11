@@ -11,10 +11,19 @@ import type { BibliographyLayout } from '@/citation';
  */
 export function toHTMLDocument(
   entries: string[],
-  options: { title?: string; styleTitle?: string; layout?: BibliographyLayout } = {},
+  options: {
+    title?: string;
+    styleTitle?: string;
+    layout?: BibliographyLayout;
+    /** CSS font stack chosen in the format bar. */
+    fontFamily?: string;
+    fontSize?: number;
+  } = {},
 ): string {
   const title = options.title ?? 'Bibliography';
   const layout = options.layout;
+  const fontFamily = options.fontFamily ?? "Georgia, 'Times New Roman', serif";
+  const fontSize = options.fontSize ?? 12;
 
   const entryRules = layout?.hangingIndent
     ? '.csl-entry { padding-left: 2em; text-indent: -2em; }'
@@ -32,8 +41,8 @@ export function toHTMLDocument(
 <title>${escapeHTML(title)}</title>
 <style>
   body {
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 12pt;
+    font-family: ${fontFamily};
+    font-size: ${fontSize}pt;
     line-height: 1.6;
     max-width: 42rem;
     margin: 3rem auto;

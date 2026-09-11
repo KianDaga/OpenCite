@@ -1,10 +1,16 @@
 import type { LookupResponse, LookupResult } from '@opencite/shared';
-import { arxivToDOI, identify, type Identifier } from '@opencite/shared';
+import {
+  arxivToDOI,
+  identify,
+  resolveCrossrefDOI,
+  resolveDataCiteDOI,
+  resolveGoogleBooksISBN,
+  resolveOpenLibraryISBN,
+  searchCrossref,
+  type Identifier,
+} from '@opencite/shared';
+import { fetchJSON } from '../http';
 import { fetchPage, PageFetchError } from '../fetchPage';
-import { resolveCrossrefDOI, searchCrossref } from './crossref';
-import { resolveDataCiteDOI } from './datacite';
-import { resolveOpenLibraryISBN } from './openLibrary';
-import { resolveGoogleBooksISBN } from './googleBooks';
 import { resolveWebpage } from './webpage';
 
 export { PageFetchError };
@@ -22,12 +28,19 @@ export { PageFetchError };
 export async function resolveDOI(doi: string): Promise<LookupResult[]> {
   // Crossref for journal literature, DataCite for datasets, preprints,
   // software and theses. A DOI lives in exactly one of them.
-  const result = (await resolveCrossrefDOI(doi)) ?? (await resolveDataCiteDOI(doi));
+  const result =
+    (await resolveCrossrefDOI(doi, fetchJSON)) ?? (await resolveDataCiteDOI(doi, fetchJSON));
   return result ? [result] : [];
 }
 
 export async function resolveISBN(isbn: string): Promise<LookupResult[]> {
-  const result = (await resolveOpenLibraryISBN(isbn)) ?? (await resolveGoogleBooksISBN(isbn));
+  const result =
+    (await resolveOpenLibraryISBN(isbn, fetchJSON)) ??
+    (await resolveGoogleBooksISBN(isbn, fetchJSON, {
+      ...(process.env.GOOGLE_BOOKS_API_KEY
+        ? { googleBooksApiKey: process.env.GOOGLE_BOOKS_API_KEY }
+        : {}),
+    }));
   return result ? [result] : [];
 }
 
@@ -91,7 +104,7 @@ export async function lookup(query: string): Promise<LookupResponse> {
 
     default:
       // Not an identifier — treat it as a title and offer candidates.
-      results = query.trim().length >= 4 ? await searchCrossref(query) : [];
+      results = query.trim().length >= 4 ? await searchCrossref(query, fetchJSON) : [];
   }
 
   return results.length > 0 ? { results } : { results: [], message: emptyMessage(identifier) };

@@ -152,6 +152,10 @@ export interface DocxOptions {
   title?: string;
   styleTitle?: string;
   layout?: BibliographyLayout;
+  /** Font name as Word knows it, e.g. "Times New Roman". */
+  fontFamily?: string;
+  /** Point size. Word stores half-points, so this is doubled on the way in. */
+  fontSize?: number;
 }
 
 /** Word measures indents in twips: 1 inch = 1440, so a 0.5" indent is 720. */
@@ -192,6 +196,17 @@ export async function toDocxBlob(entries: string[], options: DocxOptions = {}): 
 
   const document = new Document({
     creator: 'OpenCite',
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: options.fontFamily ?? 'Times New Roman',
+            // Word measures in half-points.
+            size: (options.fontSize ?? 12) * 2,
+          },
+        },
+      },
+    },
     title: options.title ?? 'Bibliography',
     description: options.styleTitle ?? '',
     sections: [

@@ -7,6 +7,8 @@ import {
   type LookupResult,
 } from '@opencite/shared';
 import { db } from '@/db/dexieStore';
+import { lookupDirect } from './direct';
+import { LookupError } from './errors';
 
 /**
  * Talks to the lookup functions, and remembers what they said.
@@ -34,16 +36,6 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
  */
 export const LOOKUP_ENABLED = import.meta.env.VITE_LOOKUP_ENABLED !== 'false';
 
-/** Cached metadata never expires on its own — a published record is fixed. */
-export class LookupError extends Error {
-  constructor(
-    message: string,
-    readonly code: string = 'internal',
-  ) {
-    super(message);
-    this.name = 'LookupError';
-  }
-}
 
 async function readCache(key: string): Promise<LookupResult | undefined> {
   if (!key) return undefined;
@@ -67,6 +59,9 @@ async function writeCache(result: LookupResult): Promise<void> {
   });
 }
 
+/** Errors that mean "no service here", as opposed to "the service said no". */
+const FALLBACK_CODES = new Set(['offline', 'unavailable']);
+
 export interface LookupOptions {
   /** Skip the cache and re-ask the source. */
   refresh?: boolean;
@@ -83,18 +78,16 @@ async function readJSON(response: Response): Promise<unknown | null> {
 }
 
 /**
- * OpenCite runs perfectly well as static files — that is the point of keeping
- * the library local — but the lookup functions need a server. When they are
- * absent, the honest thing is to name the limitation and point at the way
- * round it, rather than reporting a failure the user could retry forever.
+ * Runs a lookup and caches a confident answer.
+ *
+ * Two routes. When a lookup service is deployed it handles everything,
+ * including reading web pages. When one is not, the browser talks to Crossref,
+ * Open Library and DataCite itself — they all allow cross-origin requests — so
+ * DOIs, ISBNs, arXiv ids and title searches still work with no backend at all.
+ * The server route falls back to the direct one if it fails, because a
+ * temporarily unreachable service is no reason to refuse a lookup the browser
+ * could have done unaided.
  */
-function lookupUnavailable(): LookupError {
-  return new LookupError(
-    'Automatic lookup is not available on this deployment — it needs the OpenCite lookup service running alongside the app. You can still add references by hand, and everything already in your library works normally.',
-    'unavailable',
-  );
-}
-
 export async function lookupMetadata(
   query: string,
   options: LookupOptions = {},
@@ -106,6 +99,26 @@ export async function lookupMetadata(
     if (cached) return { results: [cached] };
   }
 
+  const payload = LOOKUP_ENABLED
+    ? await viaService(query, options).catch((error: unknown) => {
+        if ((error as Error).name === 'AbortError') throw error;
+        // Fall back only when the service could not be reached. A refusal it
+        // issued deliberately — a blocked address, a malformed request — is an
+        // answer, and replacing it with a guess would hide the real reason.
+        if (error instanceof LookupError && !FALLBACK_CODES.has(error.code)) throw error;
+        return lookupDirect(query);
+      })
+    : await lookupDirect(query);
+
+  // Only a confident answer is worth caching; search candidates are guesses
+  // and would poison the cache for that key.
+  const best = payload.results[0];
+  if (best && best.confidence >= 0.8) await writeCache(best);
+
+  return payload;
+}
+
+async function viaService(query: string, options: LookupOptions): Promise<LookupResponse> {
   let response: Response;
   try {
     response = await fetch(
@@ -124,10 +137,9 @@ export async function lookupMetadata(
 
   if (!response.ok) {
     // A 404 with no JSON body means there is no lookup service at this
-    // address — the app is deployed as static files. That is a normal way to
-    // host OpenCite, so say so plainly instead of "try again", which invites
-    // the user to retry something that cannot succeed.
-    if (!body) throw lookupUnavailable();
+    // address, even though this build expected one. Falling back to the direct
+    // resolvers is better than reporting a failure.
+    if (!body) throw new LookupError('No lookup service at that address.', 'unavailable');
 
     const error = (body as { error?: { code?: string; message?: string } }).error;
     throw new LookupError(
@@ -139,17 +151,10 @@ export async function lookupMetadata(
   // Static hosts with a single-page fallback answer *any* path with 200 and
   // index.html, so a successful status is not proof we reached the API.
   if (!body || !Array.isArray((body as LookupResponse).results)) {
-    throw lookupUnavailable();
+    throw new LookupError('That address did not answer with a lookup result.', 'unavailable');
   }
 
-  const payload = body as LookupResponse;
-
-  // Only the confident answer is worth caching; search candidates are guesses
-  // and would poison the cache for that key.
-  const best = payload.results[0];
-  if (best && best.confidence >= 0.8) await writeCache(best);
-
-  return payload;
+  return body as LookupResponse;
 }
 
 /** Provenance to store alongside a citation added from a lookup. */

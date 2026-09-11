@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import type { LookupResult } from '@opencite/shared';
+import type { CSLItemType, LookupResult } from '@opencite/shared';
 import { useLibraryActions } from '@/state';
-import { LookupError, cslForStorage, lookupMetadata, sourceFor } from './client';
+import { cslForStorage, lookupMetadata, sourceFor } from './client';
+import { LookupError, UrlLookupUnavailable } from './errors';
 
 /**
  * Drives the Autocite bar.
@@ -58,7 +59,7 @@ export function useLookup() {
   );
 
   const search = useCallback(
-    async (rawQuery: string) => {
+    async (rawQuery: string, manualType: CSLItemType = 'document') => {
       const query = rawQuery.trim();
       if (!query) return;
 
@@ -91,6 +92,19 @@ export function useLookup() {
         setState({ ...IDLE, status: 'choosing', candidates: response.results, query });
       } catch (error) {
         if (controller.signal.aborted || (error as Error).name === 'AbortError') return;
+
+        // A web page needs a server to read it. Rather than report a failure,
+        // open manual entry with the address and today's date already filled
+        // in — which is most of the work of citing a page anyway.
+        if (error instanceof UrlLookupUnavailable) {
+          setState(IDLE);
+          actions.openDialog({
+            kind: 'manual-entry',
+            prefill: { type: manualType === 'document' ? 'webpage' : manualType, URL: error.url },
+          });
+          return;
+        }
+
         setState({
           ...IDLE,
           status: 'error',
@@ -102,7 +116,7 @@ export function useLookup() {
         });
       }
     },
-    [accept],
+    [accept, actions],
   );
 
   return { state, search, accept, reset };

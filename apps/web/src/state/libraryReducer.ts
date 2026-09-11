@@ -97,6 +97,9 @@ export function libraryReducer(state: LibraryUIState, action: LibraryAction): Li
     case 'inspect':
       return { ...state, inspectingId: action.id };
 
+    case 'toggle-sidebar':
+      return { ...state, sidebarCollapsed: !state.sidebarCollapsed };
+
     case 'open-dialog':
       return { ...state, dialog: action.dialog };
 

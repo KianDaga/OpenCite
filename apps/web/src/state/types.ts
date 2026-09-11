@@ -1,4 +1,4 @@
-import type { CitationSort, FolderRef } from '@opencite/shared';
+import type { CSLItem, CitationSort, FolderRef } from '@opencite/shared';
 
 /**
  * Everything the UI needs that is *not* in the database.
@@ -30,12 +30,15 @@ export interface LibraryUIState {
   sortOverride: CitationSort | undefined;
   /** Which citation the detail/edit panel is showing. */
   inspectingId: string | undefined;
+  /** Sidebar collapsed to give the list the full width. */
+  sidebarCollapsed: boolean;
   dialog: DialogState | null;
   status: BootstrapStatus;
 }
 
 export type DialogState =
-  | { kind: 'manual-entry'; citationId?: string }
+  /** `prefill` seeds a new reference — used when a lookup got partway there. */
+  | { kind: 'manual-entry'; citationId?: string; prefill?: Partial<CSLItem> }
   | { kind: 'autocite' }
   | { kind: 'style-picker' }
   | { kind: 'export' }
@@ -62,6 +65,7 @@ export type LibraryAction =
   | { type: 'set-selection'; ids: string[] }
   | { type: 'clear-selection' }
   | { type: 'inspect'; id: string | undefined }
+  | { type: 'toggle-sidebar' }
   | { type: 'open-dialog'; dialog: DialogState }
   | { type: 'close-dialog' };
 
@@ -76,6 +80,7 @@ export const initialLibraryState: LibraryUIState = {
   favoritesOnly: false,
   sortOverride: undefined,
   inspectingId: undefined,
+  sidebarCollapsed: false,
   dialog: null,
   status: { state: 'loading' },
 };

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { crossrefToCSL } from '../api/_lib/resolvers/crossref';
-import { dataciteToCSL } from '../api/_lib/resolvers/datacite';
-import { openLibraryToCSL } from '../api/_lib/resolvers/openLibrary';
-import { googleBooksToCSL } from '../api/_lib/resolvers/googleBooks';
+import {
+  crossrefToCSL,
+  dataciteToCSL,
+  googleBooksToCSL,
+  openLibraryToCSL,
+} from '@opencite/shared';
 
 /**
  * Fixtures are trimmed copies of real responses, captured from the live APIs

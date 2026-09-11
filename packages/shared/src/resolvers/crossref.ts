@@ -1,6 +1,7 @@
-import type { CSLItem, CSLItemType, LookupResult } from '@opencite/shared';
-import { fetchJSON } from '../http';
-import { compactCSL, stripMarkup } from '../csl';
+import type { CSLItem, CSLItemType } from '../csl';
+import type { LookupResult } from '../api';
+import type { JSONFetcher } from './fetcher';
+import { compactCSL, stripMarkup } from '../cslBuild';
 
 /**
  * Crossref — the registry behind most journal DOIs.
@@ -128,7 +129,7 @@ export function crossrefToCSL(work: CrossrefWork, id: string): CSLItem {
   });
 }
 
-export async function resolveCrossrefDOI(doi: string): Promise<LookupResult | undefined> {
+export async function resolveCrossrefDOI(doi: string, fetchJSON: JSONFetcher): Promise<LookupResult | undefined> {
   const response = await fetchJSON<{ message?: CrossrefWork }>(
     `${API}/${encodeURIComponent(doi)}`,
   );
@@ -145,7 +146,11 @@ export async function resolveCrossrefDOI(doi: string): Promise<LookupResult | un
 }
 
 /** Free-text search, for the "I only know the title" case. */
-export async function searchCrossref(query: string, rows = 5): Promise<LookupResult[]> {
+export async function searchCrossref(
+  query: string,
+  fetchJSON: JSONFetcher,
+  rows = 5,
+): Promise<LookupResult[]> {
   const url = `${API}?query.bibliographic=${encodeURIComponent(query)}&rows=${rows}&select=DOI,type,title,subtitle,container-title,author,publisher,volume,issue,page,ISSN,ISBN,URL,issued,language`;
   const response = await fetchJSON<{ message?: { items?: CrossrefWork[] } }>(url);
 

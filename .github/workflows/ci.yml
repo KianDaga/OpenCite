@@ -1,0 +1,86 @@
+name: CI
+
+# The full suite, across every workspace, on every push and pull request.
+#
+# Separate from the deploy workflow on purpose: that one gates the artifact it
+# publishes and stays fast, while this one is free to install everything —
+# including the lookup functions' scraping stack — and check the whole
+# repository.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push supersedes an older run of the same branch; there is nothing to
+# leave half-applied here.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Everything, unlike the deploy workflow: this is where apps/api is
+      # actually checked, and `re2` compiles on Node 22.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck every workspace
+        run: npm run typecheck
+
+      - name: Test every workspace
+        run: npm test --workspaces --if-present
+
+      - name: Build
+        env:
+          VITE_BASE_PATH: /
+        run: npm run build
+
+      # The published artifact is a static site, so an accidental import of a
+      # Node builtin into the browser bundle would only show up at runtime.
+      - name: Check the bundle is browser-safe
+        run: |
+          if grep -rlE "require\(['\"]node:" apps/web/dist/assets/ 2>/dev/null; then
+            echo "A Node builtin reached the browser bundle."
+            exit 1
+          fi
+          echo "no Node builtins in the bundle"
+
+  formats:
+    name: Round-trip the citation formats
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --workspace @opencite/web --workspace @opencite/shared --include-workspace-root
+
+      # The export and import suites are the ones that protect other people's
+      # bibliographies, so they are named separately in the checks list rather
+      # than buried in a total.
+      - name: Export and import
+        run: npm test --workspace @opencite/web -- src/test/export.test.ts src/test/import.test.ts
+
+      - name: Citation rendering
+        run: npm test --workspace @opencite/web -- src/test/citation.test.ts

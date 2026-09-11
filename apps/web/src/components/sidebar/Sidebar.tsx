@@ -1,18 +1,22 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ChevronDown,
   ChevronRight,
   Files,
+  FilePlus2,
   Folder,
   FolderPlus,
   Inbox,
   MoreHorizontal,
-  Plus,
+  Search,
   Trash2,
+  Upload,
+  X,
 } from 'lucide-react';
 import { ROOT } from '@opencite/shared';
 import type { FolderNode } from '@/db/repositories';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import { useToast } from '@/components/ui/toaster';
 import {
@@ -46,7 +50,18 @@ export function Sidebar({
   const trash = useTrash();
   const { toast } = useToast();
 
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+
   const activeProject = projects.find((p) => p.id === activeProjectId);
+
+  // Filtering the project list matters once there are more than a screenful;
+  // below that the box stays out of the way behind its own toggle.
+  const visibleProjects = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return projects;
+    return projects.filter((project) => project.name.toLowerCase().includes(needle));
+  }, [projects, query]);
 
   const addProject = async () => {
     await actions.createProject({ name: 'New project' });
@@ -72,11 +87,70 @@ export function Sidebar({
     >
       <div className="flex items-center justify-between gap-2 px-3 py-3">
         <span className="text-sm font-semibold tracking-tight">OpenCite</span>
-        <Button variant="ghost" size="icon" onClick={() => void addProject()} title="Create project">
-          <Plus className="h-4 w-4" />
-          <span className="sr-only">Create project</span>
+      </div>
+
+      <div className="flex items-center gap-1 px-2 pb-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="min-w-0 flex-1 justify-start"
+          onClick={() => void addProject()}
+        >
+          <FilePlus2 className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate">Start new project</span>
+        </Button>
+
+        <Menu>
+          <MenuTrigger asChild>
+            <Button size="sm" variant="outline" className="shrink-0 px-1.5" aria-label="More project options">
+              <ChevronDown className="h-3.5 w-3.5" />
+            </Button>
+          </MenuTrigger>
+          <MenuContent align="end">
+            <MenuItem onSelect={() => void addProject()}>
+              <FilePlus2 className="h-3.5 w-3.5" /> Empty project
+            </MenuItem>
+            <MenuItem onSelect={() => actions.openDialog({ kind: 'import' })}>
+              <Upload className="h-3.5 w-3.5" /> Import references…
+            </MenuItem>
+            {activeProject && (
+              <>
+                <MenuSeparator />
+                <MenuItem onSelect={() => void actions.duplicateProject(activeProject.id)}>
+                  Duplicate this project
+                </MenuItem>
+              </>
+            )}
+          </MenuContent>
+        </Menu>
+
+        <Button
+          size="sm"
+          variant="ghost"
+          className="shrink-0 px-1.5"
+          aria-label="Search projects"
+          aria-pressed={searching}
+          onClick={() => {
+            setSearching((open) => !open);
+            if (searching) setQuery('');
+          }}
+        >
+          {searching ? <X className="h-3.5 w-3.5" /> : <Search className="h-3.5 w-3.5" />}
         </Button>
       </div>
+
+      {searching && (
+        <div className="px-2 pb-2">
+          <Input
+            autoFocus
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Find a project"
+            aria-label="Find a project"
+            className="h-8 text-sm"
+          />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2 pb-3">
         <p className="px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -84,7 +158,7 @@ export function Sidebar({
         </p>
 
         <ul className="flex flex-col gap-0.5">
-          {projects.map((project) => (
+          {visibleProjects.map((project) => (
             <li key={project.id} className="group/project relative">
               <button
                 type="button"
@@ -132,6 +206,10 @@ export function Sidebar({
             </li>
           ))}
         </ul>
+
+        {visibleProjects.length === 0 && (
+          <p className="px-2 py-3 text-xs text-muted-foreground">No project matches that.</p>
+        )}
 
         {activeProject && (
           <>

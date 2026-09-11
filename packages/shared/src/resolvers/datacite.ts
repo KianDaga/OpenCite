@@ -1,6 +1,7 @@
-import type { CSLItem, CSLItemType, LookupResult } from '@opencite/shared';
-import { fetchJSON } from '../http';
-import { compactCSL, parseName, stripMarkup } from '../csl';
+import type { CSLItem, CSLItemType } from '../csl';
+import type { LookupResult } from '../api';
+import type { JSONFetcher } from './fetcher';
+import { compactCSL, parseName, stripMarkup } from '../cslBuild';
 
 /**
  * DataCite — the other half of the DOI world.
@@ -75,7 +76,7 @@ export function dataciteToCSL(attributes: DataCiteAttributes, id: string): CSLIt
   });
 }
 
-export async function resolveDataCiteDOI(doi: string): Promise<LookupResult | undefined> {
+export async function resolveDataCiteDOI(doi: string, fetchJSON: JSONFetcher): Promise<LookupResult | undefined> {
   const response = await fetchJSON<{ data?: { attributes?: DataCiteAttributes } }>(
     `${API}/${encodeURIComponent(doi)}`,
   );

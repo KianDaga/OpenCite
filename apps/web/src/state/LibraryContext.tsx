@@ -25,15 +25,23 @@ import type { DialogState, LibraryUIState, LibraryView } from './types';
 export const LibraryStateContext = createContext<LibraryUIState | null>(null);
 export const LibraryActionsContext = createContext<LibraryActions | null>(null);
 
-/** An action that can be reversed, for the undo toast. */
+/**
+ * A reversible action.
+ *
+ * `redo` is the inverse of the undo, which is only possible because deletes
+ * are soft: undoing a delete restores rows, redoing it trashes the same rows
+ * again. Nothing here has to remember content, only which ids moved.
+ */
 interface UndoEntry {
   label: string;
   undo: () => Promise<void>;
+  redo: () => Promise<void>;
 }
 
 export interface LibraryActions {
   // ---- Navigation & view state ----
   setView(view: LibraryView): void;
+  toggleSidebar(): void;
   selectProject(projectId: string | undefined): void;
   selectFolder(folderId: FolderRef | undefined): void;
   setSearch(search: string): void;
@@ -62,6 +70,8 @@ export interface LibraryActions {
 
   // ---- Citations ----
   addCitation(csl: Omit<CSLItem, 'id'> & { id?: string }, options?: AddCitationOptions): Promise<string | undefined>;
+  /** Bulk add from an imported file, in one transaction. */
+  importCitations(items: Array<Omit<CSLItem, 'id'>>): Promise<string[]>;
   updateCitation(id: string, patch: Partial<CSLItem>): Promise<void>;
   setTags(id: string, tags: string[]): Promise<void>;
   setNotes(id: string, notes: string): Promise<void>;
@@ -75,7 +85,9 @@ export interface LibraryActions {
   destroyCitations(ids: string[]): Promise<void>;
   emptyTrash(): Promise<void>;
   undo(): Promise<void>;
+  redo(): Promise<void>;
   canUndo(): boolean;
+  canRedo(): boolean;
 }
 
 export interface AddCitationOptions {
@@ -96,8 +108,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
    * hits ⌘Z or the toast button.
    */
   const undoStack = useRef<UndoEntry[]>([]);
+  const redoStack = useRef<UndoEntry[]>([]);
   const pushUndo = useCallback((entry: UndoEntry) => {
-    undoStack.current = [entry, ...undoStack.current].slice(0, 20);
+    undoStack.current = [entry, ...undoStack.current].slice(0, 50);
+    // A new action makes any forward history unreachable, as everywhere else.
+    redoStack.current = [];
   }, []);
 
   /**
@@ -161,6 +176,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     return {
       // ---- Navigation & view state ----
       setView: (view) => dispatch({ type: 'set-view', view }),
+      toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
       selectProject: (projectId) => dispatch({ type: 'select-project', projectId }),
       selectFolder: (folderId) => dispatch({ type: 'select-folder', folderId }),
       setSearch: (search) => dispatch({ type: 'set-search', search }),
@@ -190,7 +206,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       },
       async deleteProject(id) {
         await repo.trashProject(id);
-        pushUndo({ label: 'Project deleted', undo: () => repo.restoreProject(id) });
+        pushUndo({
+          label: 'Project deleted',
+          undo: () => repo.restoreProject(id),
+          redo: () => repo.trashProject(id),
+        });
         if (activeProjectId.current === id) {
           const remaining = await repo.liveProjects();
           dispatch({ type: 'select-project', projectId: remaining[0]?.id });
@@ -208,7 +228,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       moveFolder: repo.moveFolder,
       async deleteFolder(id, strategy = 'unfile') {
         await repo.trashFolder(id, strategy);
-        pushUndo({ label: 'Folder deleted', undo: () => repo.restoreFolder(id) });
+        pushUndo({
+          label: 'Folder deleted',
+          undo: () => repo.restoreFolder(id),
+          redo: () => repo.trashFolder(id, strategy),
+        });
         if (activeFolderId.current === id) dispatch({ type: 'select-folder', folderId: undefined });
       },
 
@@ -243,6 +267,20 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'inspect', id: created.id });
         return created.id;
       },
+      async importCitations(items) {
+        const projectId = requireProject();
+        if (!projectId) return [];
+        // Imports may legitimately contain near-duplicates of what is already
+        // held; the file is the user's own record and is taken at its word.
+        return repo.createCitations(
+          projectId,
+          items.map((csl) => ({
+            csl,
+            folderId: activeFolderId.current ?? ROOT,
+            source: { kind: 'import' as const, input: '', key: '' },
+          })),
+        );
+      },
       updateCitation: repo.updateCitationCSL,
       setTags: repo.setCitationTags,
       setNotes: repo.setCitationNotes,
@@ -256,6 +294,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         pushUndo({
           label: ids.length === 1 ? 'Reference deleted' : `${ids.length} references deleted`,
           undo: () => repo.restoreCitations(ids),
+          redo: () => repo.trashCitations(ids),
         });
         dispatch({ type: 'clear-selection' });
       },
@@ -265,15 +304,26 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       destroyCitations: repo.destroyCitations,
       async emptyTrash() {
         await repo.emptyTrash();
+        // Emptying the trash destroys what undo would have restored.
         undoStack.current = [];
+        redoStack.current = [];
       },
       async undo() {
         const [entry, ...rest] = undoStack.current;
         if (!entry) return;
         undoStack.current = rest;
+        redoStack.current = [entry, ...redoStack.current].slice(0, 50);
         await entry.undo();
       },
+      async redo() {
+        const [entry, ...rest] = redoStack.current;
+        if (!entry) return;
+        redoStack.current = rest;
+        undoStack.current = [entry, ...undoStack.current].slice(0, 50);
+        await entry.redo();
+      },
       canUndo: () => undoStack.current.length > 0,
+      canRedo: () => redoStack.current.length > 0,
     };
     // Built once: every piece of state these actions read comes from a ref.
   }, [pushUndo]);

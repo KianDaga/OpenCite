@@ -1,4 +1,4 @@
-import type { CSLDate, CSLDatePart, CSLItem, CSLName } from '@opencite/shared';
+import type { CSLDate, CSLDatePart, CSLItem, CSLName } from './csl';
 
 /**
  * Turning upstream metadata into CSL-JSON.

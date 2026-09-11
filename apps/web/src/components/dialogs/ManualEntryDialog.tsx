@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CSLDate, CSLItem, CSLItemType, CSLName } from '@opencite/shared';
+import { accessedToday, type CSLDate, type CSLItem, type CSLItemType, type CSLName } from '@opencite/shared';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/input';
 import {
@@ -26,6 +26,7 @@ export function ManualEntryDialog() {
 
   const open = dialog?.kind === 'manual-entry';
   const editingId = dialog?.kind === 'manual-entry' ? dialog.citationId : undefined;
+  const prefill = dialog?.kind === 'manual-entry' ? dialog.prefill : undefined;
   const existing = useCitation(editingId);
 
   const [type, setType] = useState<CSLItemType>('webpage');
@@ -40,11 +41,19 @@ export function ManualEntryDialog() {
       setType(existingType);
       setValues(rest);
     } else if (!editingId) {
-      setType('webpage');
-      setValues({});
+      const { type: seedType, ...seedValues } = prefill ?? {};
+      setType((seedType as CSLItemType) ?? 'webpage');
+      // A page cited by hand still needs the date it was read; filling it in is
+      // both correct and one less thing to look up.
+      setValues(
+        seedType === 'webpage' || seedType === 'post-weblog'
+          ? { accessed: accessedToday(), ...seedValues }
+          : seedValues,
+      );
     }
     setShowMore(false);
-  }, [open, editingId, existing]);
+    // `prefill` is a fresh object each render, so it is compared by content.
+  }, [open, editingId, existing, JSON.stringify(prefill)]);
 
   const fields = useMemo(() => fieldsForType(type), [type]);
 

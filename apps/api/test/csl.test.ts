@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDate, parseName, parseNames, stripMarkup } from '../api/_lib/csl';
+import { parseDate, parseName, parseNames, stripMarkup } from '@opencite/shared';
 
 describe('parseName', () => {
   it('reads "Family, Given"', () => {

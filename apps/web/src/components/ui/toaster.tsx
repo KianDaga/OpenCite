@@ -45,7 +45,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed bottom-4 left-1/2 z-[60] flex w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 flex-col gap-2"
+        // Clears the status bar along the bottom rather than covering it.
+        className="pointer-events-none fixed bottom-12 left-1/2 z-[60] flex w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 flex-col gap-2"
         // Announced politely: a toast confirms something the user just did.
         role="status"
         aria-live="polite"

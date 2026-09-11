@@ -66,8 +66,9 @@
    that on the container as data attributes — so these rules read the style's
    intent instead of hard-coding one journal's house rules. */
 @layer components {
+  /* Font and size come from the format bar as inline styles, so the reader
+     sees the typeface their document will use. */
   .csl-bib-body {
-    @apply font-serif text-[15px];
     line-height: var(--csl-line-height, 1.6);
   }
 

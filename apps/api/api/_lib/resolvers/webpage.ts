@@ -7,10 +7,17 @@ import msTitle from 'metascraper-title';
 import msDescription from 'metascraper-description';
 import msLang from 'metascraper-lang';
 import type { CSLItem, CSLItemType, LookupResult } from '@opencite/shared';
-import { accessedToday, compactCSL, parseDate, parseName, parseNames } from '../csl';
-import { normalizeDOI } from '@opencite/shared';
-import { resolveCrossrefDOI } from './crossref';
-import { resolveDataCiteDOI } from './datacite';
+import {
+  accessedToday,
+  compactCSL,
+  normalizeDOI,
+  parseDate,
+  parseName,
+  parseNames,
+  resolveCrossrefDOI,
+  resolveDataCiteDOI,
+} from '@opencite/shared';
+import { fetchJSON } from '../http';
 
 /**
  * Web pages, in priority order.
@@ -385,7 +392,8 @@ export async function resolveWebpage(
   // The page named a DOI: the registry knows better than the landing page.
   if (page.doi) {
     const registry =
-      (await resolveCrossrefDOI(page.doi)) ?? (await resolveDataCiteDOI(page.doi));
+      (await resolveCrossrefDOI(page.doi, fetchJSON)) ??
+      (await resolveDataCiteDOI(page.doi, fetchJSON));
     if (registry) {
       return [
         {

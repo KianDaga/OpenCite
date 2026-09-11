@@ -17,6 +17,8 @@ import {
   type ExportFormat,
 } from '@/export';
 import {
+  fontStackFor,
+  useAppearance,
   useActiveProject,
   useCitations,
   useLibraryActions,
@@ -40,6 +42,7 @@ export function ExportDialog() {
   const all = useCitations();
   const selected = useSelectedCitations();
   const { toast } = useToast();
+  const { fontFamily, fontSize } = useAppearance();
 
   const open = dialog?.kind === 'export';
   const [scope, setScope] = useState<'all' | 'selected'>('all');
@@ -79,6 +82,8 @@ export function ExportDialog() {
           downloadText(
             toHTMLDocument(entries, {
               title: name,
+              fontFamily: fontStackFor(fontFamily),
+              fontSize,
               ...(bibliography.result?.styleTitle ? { styleTitle: bibliography.result.styleTitle } : {}),
               ...(bibliography.result?.layout ? { layout: bibliography.result.layout } : {}),
             }),
@@ -89,6 +94,8 @@ export function ExportDialog() {
         case 'docx': {
           const blob = await toDocxBlob(entries, {
             title: name,
+            fontFamily,
+            fontSize,
             ...(bibliography.result?.styleTitle ? { styleTitle: bibliography.result.styleTitle } : {}),
             ...(bibliography.result?.layout ? { layout: bibliography.result.layout } : {}),
           });

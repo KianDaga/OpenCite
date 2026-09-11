@@ -9,10 +9,17 @@ Built as an open alternative to MyBib and ZoteroBib.
 
 ## Status
 
-**Complete.** All five steps are built: paste a URL, DOI or ISBN, organise the
-results into projects and folders, format them in any of ~2,600 CSL styles, and
-export to Word, HTML, plain text, BibTeX, RIS or CSL JSON. No account, no
-paywall, no watermark.
+**Complete.** Paste a DOI, ISBN, arXiv id or title and the reference is fetched
+and formatted; organise into projects and folders; render in any of ~2,600 CSL
+styles; import from and export to every format a reference manager speaks. No
+account, no paywall, no watermark.
+
+**Autocite works with no server.** Crossref, Open Library and DataCite all
+allow cross-origin requests, so the browser queries them directly — DOIs,
+ISBNs, arXiv ids and title searches resolve on a purely static deployment.
+Reading a *web page* is the one thing that needs a server, because a browser
+cannot fetch an arbitrary URL; without one, the address and access date are
+filled into the manual form instead.
 
 | Step | Scope                                                       | State |
 | ---- | ----------------------------------------------------------- | ----- |
@@ -22,12 +29,15 @@ paywall, no watermark.
 | 4    | UI — sidebar, citation table, Autocite bar, manual entry    | done  |
 | 5    | Export — HTML, `.docx`, BibTeX, RIS                         | done  |
 
+Since then: import (BibTeX, RIS, CSL JSON), browser-side autocite, themes,
+undo/redo, per-project font and size, and the full CI suite.
+
 ## Quick start
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173 — serves the lookup API too
-npm test             # 164 tests across all three workspaces
+npm test             # 195 tests across all three workspaces
 npm run typecheck
 ```
 

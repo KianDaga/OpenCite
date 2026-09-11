@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSLItem, Citation } from '@opencite/shared';
-import { useActiveProject, useCitations } from '@/state';
+import { fontStackFor, useActiveProject, useAppearance, useCitations } from '@/state';
 import { CSLFetchError } from './styleRegistry';
 import {
   renderBibliography,
@@ -176,14 +176,24 @@ export function useInTextCitations(items: Citation[]): Map<string, string> {
  * `globals.css` reads them.
  */
 export function useBibliographyAttributes(state: BibliographyState) {
+  const { fontFamily, fontSize } = useAppearance();
+  const layout = state.result?.layout;
+
   return useMemo(() => {
-    const layout = state.result?.layout;
-    if (!layout) return { 'data-hanging-indent': 'false' } as const;
+    const typography = {
+      fontFamily: fontStackFor(fontFamily),
+      fontSize: `${fontSize}pt`,
+    };
+
+    if (!layout) {
+      return { 'data-hanging-indent': 'false', style: typography as React.CSSProperties };
+    }
 
     return {
       'data-hanging-indent': String(layout.hangingIndent),
       'data-second-field-align': layout.secondFieldAlign || 'none',
       style: {
+        ...typography,
         // `maxoffset` is the widest label in characters; `ch` is the unit that
         // matches what citeproc measured.
         '--csl-max-offset': `${Math.max(layout.maxOffset, 1)}ch`,
@@ -191,5 +201,5 @@ export function useBibliographyAttributes(state: BibliographyState) {
         '--csl-line-height': String(Math.max(layout.lineSpacing, 1) * 1.5),
       } as React.CSSProperties,
     };
-  }, [state.result?.layout]);
+  }, [layout, fontFamily, fontSize]);
 }

@@ -10,6 +10,9 @@ export const SETTING_KEYS = {
   theme: 'theme',
   onboarded: 'onboarded',
   recentStyles: 'recentStyles',
+  fontFamily: 'fontFamily',
+  fontSize: 'fontSize',
+  sessionStart: 'sessionStart',
 } as const;
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {

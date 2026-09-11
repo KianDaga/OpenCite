@@ -1,6 +1,7 @@
-import type { CSLItem, LookupResult } from '@opencite/shared';
-import { fetchJSON } from '../http';
-import { compactCSL, parseDate, parseName } from '../csl';
+import type { CSLItem } from '../csl';
+import type { LookupResult } from '../api';
+import type { JSONFetcher } from './fetcher';
+import { compactCSL, parseDate, parseName } from '../cslBuild';
 
 /**
  * Open Library — the primary ISBN resolver.
@@ -50,7 +51,7 @@ export function openLibraryToCSL(book: OpenLibraryBook, isbn: string, id: string
   });
 }
 
-export async function resolveOpenLibraryISBN(isbn: string): Promise<LookupResult | undefined> {
+export async function resolveOpenLibraryISBN(isbn: string, fetchJSON: JSONFetcher): Promise<LookupResult | undefined> {
   const url = `${API}?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`;
   const response = await fetchJSON<Record<string, OpenLibraryBook>>(url);
 
