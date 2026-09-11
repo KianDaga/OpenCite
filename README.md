@@ -51,21 +51,32 @@ Node 20.11+ is required.
 ## Deploying
 
 `.github/workflows/deploy-pages.yml` builds the app and publishes it to GitHub
-Pages on every push to the development branch. It needs one setting that only a
-repository admin can change: **Settings → Pages → Source → GitHub Actions**.
-Until that is set, the workflow runs and the deploy step fails.
+Pages on every push to the default branch → **https://kiandaga.github.io/OpenCite/**
 
-The workflow vendors the common CSL styles into the build, so the published
-site formats references with no third-party requests at all.
+The workflow asks GitHub to enable Pages itself (`enablement: true`). If the
+repository's Actions token is restricted to read-only, that call is refused and
+the fix is one setting: **Settings → Pages → Source → GitHub Actions**.
+
+It also vendors the common CSL styles into the build, so the published site
+formats references with no third-party requests at all.
 
 **Pages serves static files, so the lookup functions do not run there.** The
-library, the formatting and every export work entirely in the browser, and the
-app says so plainly if someone tries a lookup. For automatic lookups as well,
-deploy `apps/api` somewhere that runs functions (Vercel, Netlify, Cloudflare
-Workers, a plain Node server) and set `VITE_API_BASE_URL` to its address.
+library, the formatting and every export work entirely in the browser. The
+build tells the app so (`VITE_LOOKUP_ENABLED=false`), and the Autocite bar is
+replaced by a short explanation and a button that does work — rather than
+offering a search box that fails on every use.
 
-Any static host works the same way; set `VITE_BASE_PATH` if the app is served
-from a sub-path rather than a domain root.
+For automatic lookups as well, deploy `apps/api` somewhere that runs functions
+(Vercel, Netlify, Cloudflare Workers, a plain Node server) and build with
+`VITE_API_BASE_URL` pointing at it and `VITE_LOOKUP_ENABLED` unset.
+
+| Variable              | Meaning                                                     |
+| --------------------- | ----------------------------------------------------------- |
+| `VITE_BASE_PATH`      | Where the app is mounted. `/` for a domain root, `/name/` for a sub-path. |
+| `VITE_API_BASE_URL`   | Address of the lookup service. Empty means same origin.      |
+| `VITE_LOOKUP_ENABLED` | `false` when no lookup service is deployed alongside.        |
+
+Any static host works the same way.
 
 ## Layout
 

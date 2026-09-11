@@ -24,6 +24,16 @@ import { db } from '@/db/dexieStore';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
+/**
+ * Whether a lookup service is deployed alongside this build.
+ *
+ * Set to `false` for a static deployment — GitHub Pages, or any host that
+ * serves files but does not run functions. The app is fully usable that way,
+ * so the interface says so up front rather than offering a search box that
+ * cannot succeed and explaining afterwards.
+ */
+export const LOOKUP_ENABLED = import.meta.env.VITE_LOOKUP_ENABLED !== 'false';
+
 /** Cached metadata never expires on its own — a published record is fixed. */
 export class LookupError extends Error {
   constructor(

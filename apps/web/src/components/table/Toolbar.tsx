@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuSeparator, MenuTrigger } from '@/components/ui/menu';
 import { useToast } from '@/components/ui/toaster';
+import { LOOKUP_ENABLED } from '@/lookup';
 import {
   useActiveProject,
   useLibraryActions,
@@ -106,14 +107,19 @@ export function Toolbar() {
           </MenuContent>
         </Menu>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => actions.openDialog({ kind: 'manual-entry' })}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add by hand
-        </Button>
+        {/* When lookup is unavailable the Autocite bar already carries this
+            action as its primary call, a few pixels above. Two buttons doing
+            the same thing that close together is just noise. */}
+        {LOOKUP_ENABLED && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => actions.openDialog({ kind: 'manual-entry' })}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add by hand
+          </Button>
+        )}
       </div>
 
       {tags.length > 0 && (

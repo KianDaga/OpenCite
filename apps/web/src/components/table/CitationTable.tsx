@@ -5,6 +5,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/compo
 import { useToast } from '@/components/ui/toaster';
 import { CITATION_DRAG_TYPE } from '@/components/sidebar/Sidebar';
 import { toPlainText, useInTextCitations } from '@/citation';
+import { LOOKUP_ENABLED } from '@/lookup';
 import { formatNameForDisplay, issuedYear } from '@/lib/derive';
 import { typeLabel } from '@/lib/cslFields';
 import { useCitations, useLibraryActions, useLibraryState } from '@/state';
@@ -35,7 +36,9 @@ export function CitationTable() {
         <p className="max-w-sm text-sm text-muted-foreground">
           {search
             ? 'Try a different word, or clear the search to see everything.'
-            : 'Paste a URL, DOI or ISBN in the bar above — or add one by hand.'}
+            : LOOKUP_ENABLED
+              ? 'Paste a URL, DOI or ISBN in the bar above — or add one by hand.'
+              : 'Add your first reference by hand, then format it in any style.'}
         </p>
         {!search && (
           <Button

@@ -9,9 +9,47 @@
       content="Free, unlimited, ad-free citation generator. Cite anything in APA, MLA, Harvard, Chicago and thousands more styles. Your library stays on your device."
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Matches the app's own background in each theme, so the browser chrome
+         does not flash the wrong colour before the page paints. -->
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a1020" media="(prefers-color-scheme: dark)" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="OpenCite — free citation generator" />
+    <meta
+      property="og:description"
+      content="Cite anything in APA, MLA, Harvard, Chicago and thousands more styles. No account, no paywall, no watermark — your library stays in your browser."
+    />
+    <meta name="twitter:card" content="summary" />
   </head>
   <body class="h-full">
-    <div id="root" class="h-full"></div>
+    <div id="root" class="h-full">
+      <!-- Replaced on mount. Without it the first paint of a JS app is a blank
+           page, which is indistinguishable from a broken one on a slow
+           connection. -->
+      <div
+        style="
+          display: flex;
+          height: 100%;
+          align-items: center;
+          justify-content: center;
+          font: 14px/1.5 system-ui, sans-serif;
+          color: #64748b;
+        "
+      >
+        Loading OpenCite…
+      </div>
+    </div>
+    <noscript>
+      <div style="padding: 2rem; font: 15px/1.6 system-ui, sans-serif">
+        <h1 style="font-size: 1.1rem">OpenCite needs JavaScript</h1>
+        <p>
+          The citation formatter and your library both run in the browser, so there is no
+          server-rendered version to fall back to.
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

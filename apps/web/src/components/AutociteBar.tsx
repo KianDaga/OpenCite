@@ -1,16 +1,46 @@
 import { useState } from 'react';
-import { useLookup } from '@/lookup';
+import { PenLine } from 'lucide-react';
+import { LOOKUP_ENABLED, useLookup } from '@/lookup';
+import { useLibraryActions } from '@/state';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 /**
  * One box that takes anything: a URL, a DOI, an ISBN, an arXiv id, or just a
  * title. Working out which is the server's job, so the reader never has to
  * pick a category before pasting.
+ *
+ * On a static deployment there is no server to ask, so the box is replaced by
+ * an explanation and the action that does work. Showing a prominent control
+ * that fails on every use, and only then explaining why, is the worse of the
+ * two designs.
  */
 export function AutociteBar({ className }: { className?: string }) {
   const [value, setValue] = useState('');
   const { state, search, accept, reset } = useLookup();
+  const actions = useLibraryActions();
   const busy = state.status === 'searching';
+
+  if (!LOOKUP_ENABLED) {
+    return (
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-secondary/50 px-3 py-2.5',
+          className,
+        )}
+      >
+        <p className="min-w-[15rem] flex-1 text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">Add references by hand.</span>{' '}
+          Automatic lookup needs a server; this build is static. Styles, folders and
+          exports all work normally.
+        </p>
+        <Button size="sm" onClick={() => actions.openDialog({ kind: 'manual-entry' })}>
+          <PenLine className="h-3.5 w-3.5" />
+          Add a reference
+        </Button>
+      </div>
+    );
+  }
 
   const submit = async () => {
     const query = value.trim();

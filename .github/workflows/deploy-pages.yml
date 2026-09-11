@@ -3,16 +3,22 @@ name: Deploy to GitHub Pages
 # Builds the app and publishes it to GitHub Pages.
 #
 # Only the frontend is deployed: Pages serves static files, so the lookup
-# functions in apps/api do not run there. That is a supported way to use
+# functions in apps/api do not run there. That is a supported way to run
 # OpenCite — the library, the formatting and every export work entirely in the
-# browser — and the app says so plainly when someone tries a lookup. To get
+# browser — and the build tells the app so, which is why the Autocite bar
+# explains itself rather than offering an action that cannot succeed. To get
 # automatic lookups too, deploy apps/api somewhere that runs functions and set
 # VITE_API_BASE_URL to its address.
 
 on:
   push:
     branches:
+      # The repository's default branch today, plus the name it would most
+      # likely be renamed to. A branch that is not listed simply does not
+      # deploy — the `deploy` job below also refuses to publish from anything
+      # other than the default branch.
       - claude/opencite-architecture-lslgjr
+      - main
   workflow_dispatch:
 
 permissions:
@@ -23,8 +29,8 @@ permissions:
 
 # One deployment at a time. A newer push supersedes an older run rather than
 # queueing behind it: queueing sounds safer, but it means one stuck run blocks
-# every deploy after it — which is exactly what happened the first time this
-# ran, with no way to clear it except waiting out the job timeout.
+# every deploy after it — which is exactly what happened on the first run, with
+# no way to clear it except waiting out the job timeout.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -32,12 +38,22 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Nothing here takes more than a couple of minutes; anything that runs for
-    # ten is stuck, and should say so rather than burning six hours of the
+    # Nothing here takes more than a couple of minutes; anything still running
+    # at ten is stuck, and should say so rather than burn six hours of the
     # default.
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
+      # First, not last: this is the step that needs a repository setting, so
+      # failing here costs seconds instead of a whole build. `enablement` turns
+      # Pages on via the API when it is off, which is what the first three runs
+      # died of.
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/setup-node@v4
         with:
@@ -59,6 +75,21 @@ jobs:
       - name: Test
         run: npm test --workspace @opencite/web
 
+      # A project site is served from /<repo>/, so every asset URL needs that
+      # prefix or the page loads blank. A user or organisation site
+      # (<owner>.github.io) is served from the root instead, so the two cases
+      # are distinguished rather than assumed.
+      - name: Resolve base path
+        id: base
+        run: |
+          repo='${{ github.event.repository.name }}'
+          owner='${{ github.repository_owner }}'
+          if [ "$(printf '%s' "$repo" | tr '[:upper:]' '[:lower:]')" = "$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]').github.io" ]; then
+            echo "path=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=/$repo/" >> "$GITHUB_OUTPUT"
+          fi
+
       # Ships the common styles with the site so formatting does not depend on
       # a third-party CDN at runtime — which matters on networks that block
       # one. Non-fatal: if the CSL repository is unreachable during the build,
@@ -67,22 +98,28 @@ jobs:
         continue-on-error: true
         # Belt and braces: the script gives each request a deadline, and the
         # step has one of its own. `continue-on-error` forgives a failure but
-        # not a hang, and a hung step runs until the job timeout — six hours.
+        # not a hang, and a hung step runs until the job timeout.
         timeout-minutes: 4
         run: npm run fetch:styles --workspace @opencite/web
 
       - name: Build
         env:
-          # A project site is served from /<repo>/, so every asset URL needs
-          # that prefix. Derived from the repository name so a fork works
-          # without editing this file.
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
-          # Empty: no lookup service is deployed alongside a static build.
-          # Point this at a deployment of apps/api to enable lookups.
+          VITE_BASE_PATH: ${{ steps.base.outputs.path }}
+          # No lookup service is deployed alongside a static build. Set both of
+          # these — a base URL and `true` — when apps/api is deployed too.
           VITE_API_BASE_URL: ''
+          VITE_LOOKUP_ENABLED: 'false'
         run: npm run build
 
-      - uses: actions/configure-pages@v5
+      - name: Check the build is mounted at the right path
+        env:
+          BASE: ${{ steps.base.outputs.path }}
+        run: |
+          # A wrong base path produces a page that builds cleanly and then
+          # loads blank, so it is worth one grep rather than a bug report.
+          grep -q "src=\"${BASE}assets/" apps/web/dist/index.html \
+            || { echo "index.html does not reference assets under ${BASE}"; exit 1; }
+          echo "assets are mounted under ${BASE}"
 
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -90,7 +127,11 @@ jobs:
 
   deploy:
     needs: build
+    # Publish only from the default branch. The build above is a useful check
+    # anywhere; overwriting the live site is not.
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
