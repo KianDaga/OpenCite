@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Check, Copy, Menu as MenuIcon, Quote, Settings2, Table2, X } from 'lucide-react';
+import {
+  Check,
+  Copy,
+  Download,
+  Menu as MenuIcon,
+  Quote,
+  Settings2,
+  Table2,
+  X,
+} from 'lucide-react';
 import { toPlainText } from '@/citation';
 import { AutociteBar } from '@/components/AutociteBar';
 import { BibliographyView } from '@/components/Bibliography';
+import { ExportDialog } from '@/components/dialogs/ExportDialog';
 import { ManualEntryDialog } from '@/components/dialogs/ManualEntryDialog';
 import { StylePickerDialog } from '@/components/dialogs/StylePickerDialog';
 import { Sidebar } from '@/components/sidebar/Sidebar';
@@ -88,6 +98,15 @@ export function AppShell() {
               {style?.shortTitle ?? project?.styleId ?? 'Style'}
             </span>
           </Button>
+
+          <Button
+            size="sm"
+            disabled={citations.length === 0}
+            onClick={() => actions.openDialog({ kind: 'export' })}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
         </header>
 
         <div className="border-b border-border px-4 py-3">
@@ -120,6 +139,7 @@ export function AppShell() {
 
       <ManualEntryDialog />
       <StylePickerDialog />
+      <ExportDialog />
 
       {/* Announced so the count is available without watching the toolbar. */}
       <p className="sr-only" aria-live="polite">

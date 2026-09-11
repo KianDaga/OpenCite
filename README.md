@@ -9,9 +9,10 @@ Built as an open alternative to MyBib and ZoteroBib.
 
 ## Status
 
-**Step 4 of 5 — it is an application.** Projects and folders in a sidebar, a
-reference table, one box that cites anything you paste, and a form for
-everything with no identifier to look up. Only the export formats are left.
+**Complete.** All five steps are built: paste a URL, DOI or ISBN, organise the
+results into projects and folders, format them in any of ~2,600 CSL styles, and
+export to Word, HTML, plain text, BibTeX, RIS or CSL JSON. No account, no
+paywall, no watermark.
 
 | Step | Scope                                                       | State |
 | ---- | ----------------------------------------------------------- | ----- |
@@ -19,14 +20,14 @@ everything with no identifier to look up. Only the export formats are left.
 | 2    | citeproc-js integration, dynamic `.csl` fetching + caching  | done  |
 | 3    | Lookup APIs — URL scraping, Crossref, Open Library          | done  |
 | 4    | UI — sidebar, citation table, Autocite bar, manual entry    | done  |
-| 5    | Export — HTML, `.docx`, BibTeX, RIS                         | next  |
+| 5    | Export — HTML, `.docx`, BibTeX, RIS                         | done  |
 
 ## Quick start
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173 — serves the lookup API too
-npm test             # 132 tests across all three workspaces
+npm test             # 161 tests across all three workspaces
 npm run typecheck
 ```
 
@@ -68,6 +69,11 @@ per-user storage cost to recoup.
 **CSL-JSON all the way down.** Citations are stored in exactly the shape
 citeproc-js consumes, so nothing is transformed on the way to the formatter and
 every exporter maps out of one canonical model.
+
+**Export is not the upsell.** Every format is available from the first
+reference: Word with a real hanging indent, BibTeX with unique cite keys, RIS,
+CSL JSON. Locking export behind a subscription is the standard move in this
+category and it is the one thing this project exists to not do.
 
 **Ask once.** Crossref, Open Library and the CSL repository are free services
 run for the community. Every lookup is cached in the browser and keyed by a

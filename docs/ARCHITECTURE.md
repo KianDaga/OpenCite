@@ -93,8 +93,13 @@ opencite/
 │       ├── components/Bibliography.tsx
 │       └── scripts/fetch-styles.mjs   vendor styles for offline use
 │
-│   ── added in Step 5 ──
-│       └── export/                 docx.ts, bibtex.ts, ris.ts
+│       ├── export/
+│       │   ├── bibtex.ts           cite keys, brace protection, escaping
+│       │   ├── ris.ts              strict CRLF records
+│       │   ├── docx.ts             citeproc HTML → Word runs
+│       │   ├── html.ts             self-contained document
+│       │   ├── formats.ts          the menu, as data
+│       │   └── download.ts         blob delivery, safe filenames
 │
 └── apps/api/
     └── api/
@@ -398,7 +403,60 @@ Hiding it entirely, as the first pass did, left no way to reach projects,
 folders or the trash on a phone. It opens from the header and closes as soon as
 a destination is chosen.
 
-## 8. What the last step plugs into
+## 8. Export
+
+### Two families, deliberately separated
+
+A *bibliography* export is finished prose in the reader's chosen style — Word,
+HTML, plain text. A *library* export is the underlying metadata for moving into
+another tool — BibTeX, RIS, CSL JSON. They answer different needs, and a single
+flat list of file types is what makes people download the wrong one.
+
+Everything maps out of `Citation.csl`, so each exporter is a pure function of
+CSL-JSON with no database access. That is what the schema decision in Step 1
+was for.
+
+### BibTeX has two traps
+
+**Titles must be braced.** BibTeX styles re-case title words unless they are
+protected, so an unbraced "DNA methylation in Arabidopsis" is printed as "Dna
+methylation in arabidopsis". Wrapping the title in a second pair of braces
+preserves what the source wrote.
+
+**Cite keys must be unique.** Two papers by the same author in the same year
+produce the same key, and LaTeX silently keeps whichever it read last —
+a citation quietly points at the wrong work. Collisions get an a/b/c suffix.
+
+Accents are stripped from the key (`pena2001dna`) but never from the field
+values (`Peña, José`).
+
+### RIS is stricter than it looks
+
+`TY` first, `ER` last, two-character tags followed by exactly two spaces and a
+hyphen, CRLF line endings. Readers that tolerate deviations are the exception,
+so this sticks to the strict form — including flattening newlines inside a
+value, which would otherwise be read as the start of a new tag.
+
+### Word needs runs, not HTML
+
+citeproc emits HTML; Word wants a run per formatting change. So the entry
+markup is parsed into runs rather than stripped, preserving the italics that
+every style depends on. The hanging indent is a real paragraph property
+(`w:ind w:left="720" w:hanging="720"` — Word measures in twips, 1440 to the
+inch), not spaces, so it survives editing. Numeric styles export their label as
+its own run followed by a tab.
+
+The `docx` library is ~1 MB, so it is imported only when an export happens and
+Rollup keeps it in a chunk of its own.
+
+### Small things that bite
+
+Text downloads carry a UTF-8 BOM: Word and Excel read a BOM-less UTF-8 file as
+the local codepage and mangle every accented name. Downloads use an object URL
+rather than a `data:` URI, because data URIs are size-capped in some browsers
+and a large library would fail silently.
+
+## 9. Where it goes next
 
 Each remaining step attaches to a seam that already exists.
 
@@ -407,5 +465,13 @@ counts; `useCitations()` returns the table rows; `DialogState` enumerates every
 modal. Drag-and-drop calls `moveCitations({beforeId, afterId})` against the
 fractional `position` field, which rewrites one row per move.
 
-**Step 5 — export.** Everything maps out of `Citation.csl`, so each exporter is
-a pure function of CSL-JSON with no database access.
+The pieces most obviously worth building next:
+
+- **Import.** BibTeX and RIS parsing is the mirror of Step 5, and `DialogState`
+  already has a slot for it. `createCitations()` takes a batch in one
+  transaction.
+- **PubMed lookups.** `identify()` already detects a PMID; only the resolver is
+  missing.
+- **Sync.** Nothing in the schema assumes one device: ids are UUIDs generated
+  client-side and every row carries `updatedAt`, which is what a
+  last-write-wins sync would need.
