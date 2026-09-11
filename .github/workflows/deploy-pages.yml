@@ -1,0 +1,83 @@
+name: Deploy to GitHub Pages
+
+# Builds the app and publishes it to GitHub Pages.
+#
+# Only the frontend is deployed: Pages serves static files, so the lookup
+# functions in apps/api do not run there. That is a supported way to use
+# OpenCite — the library, the formatting and every export work entirely in the
+# browser — and the app says so plainly when someone tries a lookup. To get
+# automatic lookups too, deploy apps/api somewhere that runs functions and set
+# VITE_API_BASE_URL to its address.
+
+on:
+  push:
+    branches:
+      - claude/opencite-architecture-lslgjr
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  # Required by actions/deploy-pages to mint its deployment token.
+  id-token: write
+
+# One deployment at a time; queue rather than cancel, so a run that is already
+# publishing is never left half-applied.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test --workspaces --if-present
+
+      # Ships the common styles with the site so formatting does not depend on
+      # a third-party CDN at runtime — which matters on networks that block
+      # one. Non-fatal: if the CSL repository is unreachable during the build,
+      # the app still falls back to the CDN in the browser.
+      - name: Vendor CSL styles
+        continue-on-error: true
+        run: npm run fetch:styles --workspace @opencite/web
+
+      - name: Build
+        env:
+          # A project site is served from /<repo>/, so every asset URL needs
+          # that prefix. Derived from the repository name so a fork works
+          # without editing this file.
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Empty: no lookup service is deployed alongside a static build.
+          # Point this at a deployment of apps/api to enable lookups.
+          VITE_API_BASE_URL: ''
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

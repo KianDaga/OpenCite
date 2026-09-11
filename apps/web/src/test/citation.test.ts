@@ -17,6 +17,8 @@ import {
   renderCitation,
   renderCitations,
   resolveStyle,
+  styleUrls,
+  localeUrls,
   toPlainText,
 } from '@/citation';
 
@@ -296,5 +298,28 @@ describe('display names', () => {
     expect(formatNameForDisplay({ literal: 'World Health Organization' })).toBe(
       'World Health Organization',
     );
+  });
+});
+
+describe('asset paths under a sub-path deployment', () => {
+  it('mounts vendored styles under the app base, not the domain root', () => {
+    // A GitHub Pages project site is served from /<repo>/. A root-relative
+    // "/csl/..." 404s there, so every lookup falls through to the CDN with the
+    // vendored files sitting unused — silently, since the fallback works.
+    const [selfHosted] = styleUrls('apa', '/Murdermystery/');
+    expect(selfHosted).toBe('/Murdermystery/csl/styles/apa.csl');
+
+    const [locale] = localeUrls('en-GB', '/Murdermystery/');
+    expect(locale).toBe('/Murdermystery/csl/locales/locales-en-GB.xml');
+  });
+
+  it('is unchanged when the app is served from the root', () => {
+    expect(styleUrls('apa', '/')[0]).toBe('/csl/styles/apa.csl');
+  });
+
+  it('still falls back to the CDN, whatever the base', () => {
+    const urls = styleUrls('apa', '/Murdermystery/');
+    expect(urls[1]).toContain('cdn.jsdelivr.net');
+    expect(urls[2]).toContain('/dependent/');
   });
 });

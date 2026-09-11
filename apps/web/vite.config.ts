@@ -4,6 +4,15 @@ import react from '@vitejs/plugin-react';
 import { localApi } from './vite-plugin-local-api';
 
 export default defineConfig({
+  /**
+   * GitHub Pages serves a project site from `/<repo>/`, not from the domain
+   * root, so every asset URL needs that prefix or the page loads a blank
+   * screen with 404s. It comes from the environment because the correct value
+   * depends on where the build is going: `/` for local dev and for any host
+   * serving from a root.
+   */
+  base: process.env.VITE_BASE_PATH ?? '/',
+
   // `localApi` runs the serverless handlers in-process, so `npm run dev` gives
   // working lookups without a second server or the Vercel CLI.
   plugins: [react(), localApi()],

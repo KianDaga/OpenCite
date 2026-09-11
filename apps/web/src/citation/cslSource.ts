@@ -16,23 +16,33 @@ const LOCALES_CDN =
   'https://cdn.jsdelivr.net/gh/citation-style-language/locales@master';
 
 /**
+ * Where the app is mounted, always with a trailing slash.
+ *
+ * A root-relative `/csl/…` is wrong wherever the app is not served from the
+ * domain root — which includes every GitHub Pages project site, mounted at
+ * `/<repo>/`. The self-hosted copy would simply 404 and every lookup would
+ * fall through to the CDN, silently, with the vendored files sitting unused.
+ */
+const BASE = import.meta.env.BASE_URL || '/';
+
+/**
  * Style ids are filenames in the CSL repository. Independent styles sit at the
  * root; the ~1,700 dependent styles (a journal that just says "use Nature's
  * rules") live under `dependent/`. We cannot tell which from the id alone, so
  * both paths are candidates and the first that responds wins.
  */
-export function styleUrls(styleId: string): string[] {
+export function styleUrls(styleId: string, base: string = BASE): string[] {
   const safe = encodeURIComponent(styleId);
   return [
-    `/csl/styles/${safe}.csl`,
+    `${base}csl/styles/${safe}.csl`,
     `${STYLES_CDN}/${safe}.csl`,
     `${STYLES_CDN}/dependent/${safe}.csl`,
   ];
 }
 
-export function localeUrls(localeId: string): string[] {
+export function localeUrls(localeId: string, base: string = BASE): string[] {
   const safe = encodeURIComponent(localeId);
-  return [`/csl/locales/locales-${safe}.xml`, `${LOCALES_CDN}/locales-${safe}.xml`];
+  return [`${base}csl/locales/locales-${safe}.xml`, `${LOCALES_CDN}/locales-${safe}.xml`];
 }
 
 /** A style id out of an `independent-parent` href, e.g. `.../styles/nature`. */

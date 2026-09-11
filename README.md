@@ -27,7 +27,7 @@ paywall, no watermark.
 ```bash
 npm install
 npm run dev          # http://localhost:5173 — serves the lookup API too
-npm test             # 161 tests across all three workspaces
+npm test             # 164 tests across all three workspaces
 npm run typecheck
 ```
 
@@ -47,6 +47,25 @@ They land in `apps/web/public/csl/`, which the app already prefers over the
 CDN. Dependent styles pull their parent down too.
 
 Node 20.11+ is required.
+
+## Deploying
+
+`.github/workflows/deploy-pages.yml` builds the app and publishes it to GitHub
+Pages on every push to the development branch. It needs one setting that only a
+repository admin can change: **Settings → Pages → Source → GitHub Actions**.
+Until that is set, the workflow runs and the deploy step fails.
+
+The workflow vendors the common CSL styles into the build, so the published
+site formats references with no third-party requests at all.
+
+**Pages serves static files, so the lookup functions do not run there.** The
+library, the formatting and every export work entirely in the browser, and the
+app says so plainly if someone tries a lookup. For automatic lookups as well,
+deploy `apps/api` somewhere that runs functions (Vercel, Netlify, Cloudflare
+Workers, a plain Node server) and set `VITE_API_BASE_URL` to its address.
+
+Any static host works the same way; set `VITE_BASE_PATH` if the app is served
+from a sub-path rather than a domain root.
 
 ## Layout
 

@@ -63,6 +63,28 @@ export interface LookupOptions {
   signal?: AbortSignal;
 }
 
+/** Parses a JSON body, returning `null` for anything that is not JSON. */
+async function readJSON(response: Response): Promise<unknown | null> {
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * OpenCite runs perfectly well as static files — that is the point of keeping
+ * the library local — but the lookup functions need a server. When they are
+ * absent, the honest thing is to name the limitation and point at the way
+ * round it, rather than reporting a failure the user could retry forever.
+ */
+function lookupUnavailable(): LookupError {
+  return new LookupError(
+    'Automatic lookup is not available on this deployment — it needs the OpenCite lookup service running alongside the app. You can still add references by hand, and everything already in your library works normally.',
+    'unavailable',
+  );
+}
+
 export async function lookupMetadata(
   query: string,
   options: LookupOptions = {},
@@ -88,17 +110,29 @@ export async function lookupMetadata(
     );
   }
 
+  const body = await readJSON(response);
+
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as
-      | { error?: { code?: string; message?: string } }
-      | null;
+    // A 404 with no JSON body means there is no lookup service at this
+    // address — the app is deployed as static files. That is a normal way to
+    // host OpenCite, so say so plainly instead of "try again", which invites
+    // the user to retry something that cannot succeed.
+    if (!body) throw lookupUnavailable();
+
+    const error = (body as { error?: { code?: string; message?: string } }).error;
     throw new LookupError(
-      body?.error?.message ?? 'The lookup failed. Please try again.',
-      body?.error?.code ?? 'internal',
+      error?.message ?? 'The lookup failed. Please try again.',
+      error?.code ?? 'internal',
     );
   }
 
-  const payload = (await response.json()) as LookupResponse;
+  // Static hosts with a single-page fallback answer *any* path with 200 and
+  // index.html, so a successful status is not proof we reached the API.
+  if (!body || !Array.isArray((body as LookupResponse).results)) {
+    throw lookupUnavailable();
+  }
+
+  const payload = body as LookupResponse;
 
   // Only the confident answer is worth caching; search candidates are guesses
   // and would poison the cache for that key.
