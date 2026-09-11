@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A deliberately tiny author-date style. Exercises the hanging-indent
+     layout path without dragging 85 KB of APA into the repository. -->
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-US">
+  <info>
+    <title>Test Author Date</title>
+    <id>http://www.example.org/styles/test-author-date</id>
+    <updated>2024-01-01T00:00:00+00:00</updated>
+  </info>
+  <macro name="author">
+    <names variable="author">
+      <name and="symbol" name-as-sort-order="all"/>
+    </names>
+  </macro>
+  <macro name="year">
+    <date variable="issued">
+      <date-part name="year"/>
+    </date>
+  </macro>
+  <citation>
+    <layout prefix="(" suffix=")" delimiter="; ">
+      <names variable="author">
+        <name form="short"/>
+      </names>
+      <text macro="year" prefix=", "/>
+    </layout>
+  </citation>
+  <bibliography hanging-indent="true">
+    <sort>
+      <key macro="author"/>
+      <key macro="year"/>
+    </sort>
+    <layout suffix=".">
+      <text macro="author"/>
+      <text macro="year" prefix=" (" suffix=")"/>
+      <text variable="title" prefix=" " font-style="italic"/>
+    </layout>
+  </bibliography>
+</style>

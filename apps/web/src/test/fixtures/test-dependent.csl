@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A dependent style: no formatting of its own, just a pointer at a parent.
+     About two-thirds of the CSL repository looks like this. -->
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-US">
+  <info>
+    <title>Test Dependent Journal</title>
+    <id>http://www.example.org/styles/test-dependent</id>
+    <link href="http://www.zotero.org/styles/test-author-date" rel="independent-parent"/>
+    <category citation-format="author-date"/>
+    <updated>2024-01-01T00:00:00+00:00</updated>
+  </info>
+</style>

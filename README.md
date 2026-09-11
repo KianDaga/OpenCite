@@ -9,14 +9,15 @@ Built as an open alternative to MyBib and ZoteroBib.
 
 ## Status
 
-**Step 1 of 5 — foundation.** The database, the state layer and the build
-tooling are in place and tested. The interface arrives in Step 4.
+**Step 2 of 5 — formatting works.** References are stored, formatted into any
+CSL style, and cached for offline use. Metadata still has to be entered by
+hand until Step 3, and the interface arrives in Step 4.
 
 | Step | Scope                                                       | State |
 | ---- | ----------------------------------------------------------- | ----- |
-| 1    | Architecture, Dexie schema, state management                | done |
-| 2    | citeproc-js integration, dynamic `.csl` fetching + caching  | next |
-| 3    | Lookup APIs — URL scraping, Crossref, Open Library          | —     |
+| 1    | Architecture, Dexie schema, state management                | done  |
+| 2    | citeproc-js integration, dynamic `.csl` fetching + caching  | done  |
+| 3    | Lookup APIs — URL scraping, Crossref, Open Library          | next  |
 | 4    | UI — sidebar, citation table, Autocite bar, manual entry    | —     |
 | 5    | Export — HTML, `.docx`, BibTeX, RIS                         | —     |
 
@@ -26,9 +27,20 @@ tooling are in place and tested. The interface arrives in Step 4.
 npm install
 npm run dev          # http://localhost:5173
 npm run dev:api      # serverless functions on :3001 (needs `vercel`)
-npm test             # 13 tests across the reducer and the Dexie schema
+npm test             # 31 tests: reducer, Dexie schema, style registry, rendering
 npm run typecheck
 ```
+
+To run without a CDN — offline installs, or networks that block third-party
+requests — vendor the styles you ship:
+
+```bash
+npm run fetch:styles --workspace @opencite/web          # the default catalog
+npm run fetch:styles --workspace @opencite/web apa ieee # or just these
+```
+
+They land in `apps/web/public/csl/`, which the app already prefers over the
+CDN. Dependent styles pull their parent down too.
 
 Node 20.11+ is required.
 
@@ -53,6 +65,11 @@ per-user storage cost to recoup.
 **CSL-JSON all the way down.** Citations are stored in exactly the shape
 citeproc-js consumes, so nothing is transformed on the way to the formatter and
 every exporter maps out of one canonical model.
+
+**The style decides the layout, not the stylesheet.** APA wants a hanging
+indent; IEEE wants a flush-left `[1]` gutter. citeproc reports which in its
+bibliography metadata, and the CSS reads that — so adding a style never means
+touching code.
 
 **No store mirroring the database.** Reads go through Dexie's `useLiveQuery`;
 React state holds only what is selected and what is typed. A write from any

@@ -60,22 +60,55 @@
 }
 
 /* Rendered bibliographies come out of citeproc-js as HTML with these class
-   names. Hanging indents are part of APA/MLA, so they belong in CSS, not in
-   the formatter. */
+   names. How they are laid out is decided by the *style*, not by us: APA wants
+   a hanging indent, IEEE wants a flush-left "[1]" gutter. citeproc reports
+   which in its bibliography metadata, and `useBibliographyAttributes` puts
+   that on the container as data attributes — so these rules read the style's
+   intent instead of hard-coding one journal's house rules. */
 @layer components {
   .csl-bib-body {
-    @apply font-serif text-[15px] leading-relaxed;
+    @apply font-serif text-[15px];
+    line-height: var(--csl-line-height, 1.6);
   }
 
   .csl-entry {
-    @apply mb-3 pl-8 -indent-8;
+    margin-bottom: var(--csl-entry-spacing, 0.75rem);
   }
 
   .csl-entry:last-child {
-    @apply mb-0;
+    margin-bottom: 0;
   }
 
-  .csl-left-margin {
-    @apply inline-block pr-1;
+  /* Author-date styles: second and later lines indent under the first. */
+  [data-hanging-indent='true'] .csl-entry {
+    padding-left: 2em;
+    text-indent: -2em;
+  }
+
+  /* Numeric styles: the label sits in its own gutter, sized by citeproc's
+     `maxoffset` (the width of the widest label, in characters). */
+  [data-second-field-align='flush'] .csl-entry,
+  [data-second-field-align='margin'] .csl-entry {
+    display: flex;
+    gap: 0.5em;
+    padding-left: 0;
+    text-indent: 0;
+  }
+
+  [data-second-field-align='flush'] .csl-left-margin,
+  [data-second-field-align='margin'] .csl-left-margin {
+    flex: 0 0 var(--csl-max-offset, 2ch);
+  }
+
+  /* "margin" hangs the label in the margin, so it reads right-aligned
+     against the text column; "flush" starts it at the left edge. */
+  [data-second-field-align='margin'] .csl-left-margin {
+    text-align: right;
+  }
+
+  [data-second-field-align='flush'] .csl-right-inline,
+  [data-second-field-align='margin'] .csl-right-inline {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }

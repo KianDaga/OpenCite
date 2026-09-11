@@ -71,8 +71,16 @@ opencite/
 │       ├── styles/globals.css      design tokens + .csl-entry rules
 │       └── test/                   reducer + schema tests
 │
+│       ├── citation/
+│       │   ├── cslSource.ts        candidate URLs + response validation
+│       │   ├── styleRegistry.ts    fetch, follow parents, two-tier cache
+│       │   ├── engine.ts           citeproc adapter, engine cache
+│       │   ├── styleCatalog.ts     the verified shortlist for the picker
+│       │   └── useBibliography.ts  async render, generation-guarded
+│       ├── components/Bibliography.tsx
+│       └── scripts/fetch-styles.mjs   vendor styles for offline use
+│
 │   ── added in later steps ──
-│       ├── citation/               Step 2: engine.ts, styleRegistry.ts
 │       ├── components/             Step 4: Sidebar, CitationTable, …
 │       └── export/                 Step 5: docx.ts, bibtex.ts, ris.ts
 │
@@ -177,15 +185,74 @@ components ──► useLibraryActions()  ──► repositories ──► Dexie
 - Shift-click ranges are computed against the ids *as displayed*, so a range
   follows the visible sort order rather than insertion order.
 
-## 5. What the later steps plug into
+## 5. The citation layer
+
+### Everything must be in memory before citeproc starts
+
+citeproc's two host callbacks — `retrieveItem` and `retrieveLocale` — are
+**synchronous**. It asks for an item or a locale in the middle of rendering and
+cannot wait for a promise. That single fact decides the shape of the whole
+layer: an async *preparation* phase resolves the style, follows any parent
+link, and loads every locale that could be requested; only once all of it sits
+in memory is the engine constructed and rendering run synchronously.
+
+Preloading covers the requested locale, the style's own `default-locale`, and
+`en-US`. Anything unpredicted falls back to `en-US` inside `sys` rather than
+returning nothing, because returning nothing fails deep inside citeproc's
+parser with an error that names no cause.
+
+### Dependent styles
+
+Roughly two-thirds of the CSL repository is *dependent* styles — files whose
+entire content is a pointer at another style's rules. Hand one to citeproc and
+you get a style with no formatting at all. `resolveStyle()` follows
+`<link rel="independent-parent">` (depth-capped, cycle-guarded) and renders
+with the parent's XML while keeping the requested id and title for display:
+the user picked "Turabian", and that is what they should keep seeing.
+
+They also live at a different path. Independent styles sit at the repository
+root, dependent ones under `dependent/`, and the id alone does not say which —
+so both are candidates, tried in order.
+
+### Validating the response, not just the status
+
+A candidate URL returning HTTP 200 is not proof it returned a style. Static
+hosting answers *any* unmatched path with `index.html`, so a request for a
+style that is not self-hosted comes back as the app's own HTML page — which
+then reaches citeproc as a "style". Every response is therefore checked for the
+CSL namespace and the expected root element before it is accepted. The same
+guard covers captive portals and CDN error pages.
+
+### Caching, in two tiers
+
+A module-level `Map` in front of the `styles` table in IndexedDB. Cached
+entries are served immediately however old they are and revalidated in the
+background past 30 days — a style that formats slightly out of date beats a
+spinner, and CSL styles change rarely. Engines are cached too, keyed by
+style + locale and capped at four, because constructing one parses ~85 KB of
+XML; renders re-point an existing engine at fresh items instead of rebuilding.
+
+Once a style has been seen, it formats offline. Verified by reloading with
+every CSL request blocked.
+
+### Layout comes from the style
+
+APA hangs its entries; IEEE puts `[1]` in a flush-left gutter sized to the
+widest label. citeproc reports which in its bibliography metadata
+(`hangingindent`, `second-field-align`, `maxoffset`), and that is projected
+onto the container as data attributes and custom properties which
+`globals.css` reads. Hard-coding either layout silently mis-renders every
+style of the other kind — which is exactly what Step 1's stylesheet did, and
+what the numeric-layout test now guards.
+
+### citeproc is loaded lazily
+
+The library is ~376 KB minified. A dynamic `import()` keeps it in its own
+chunk, so nothing is downloaded until there is something to format.
+
+## 6. What the later steps plug into
 
 Each remaining step attaches to a seam that already exists.
-
-**Step 2 — citeproc.** `styles` table is the cache; `StyleCacheEntry.parentId`
-already models `<link rel="independent-parent">` for dependent styles.
-`citation/engine.ts` implements citeproc's `sys` object with
-`retrieveItem` reading from `citations` and `retrieveLocale` from `styles`.
-Rendered output gets the `.csl-entry` rules already in `globals.css`.
 
 **Step 3 — lookups.** `LookupResponse` is fixed, the routes answer 501, and
 `CitationSource.key` is already the `metadataCache` primary key. Duplicate
