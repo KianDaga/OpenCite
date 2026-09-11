@@ -1,9 +1,12 @@
 import path from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { localApi } from './vite-plugin-local-api';
 
 export default defineConfig({
-  plugins: [react()],
+  // `localApi` runs the serverless handlers in-process, so `npm run dev` gives
+  // working lookups without a second server or the Vercel CLI.
+  plugins: [react(), localApi()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -12,13 +15,6 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: {
-      // Lets `npm run dev` talk to the local serverless functions without CORS.
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
   },
   build: {
     target: 'es2022',

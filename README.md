@@ -9,27 +9,30 @@ Built as an open alternative to MyBib and ZoteroBib.
 
 ## Status
 
-**Step 2 of 5 — formatting works.** References are stored, formatted into any
-CSL style, and cached for offline use. Metadata still has to be entered by
-hand until Step 3, and the interface arrives in Step 4.
+**Step 3 of 5 — it cites things now.** Paste a URL, DOI, ISBN or arXiv id and
+the metadata is fetched, cached and formatted into any CSL style. What is left
+is the real interface and the export formats.
 
 | Step | Scope                                                       | State |
 | ---- | ----------------------------------------------------------- | ----- |
 | 1    | Architecture, Dexie schema, state management                | done  |
 | 2    | citeproc-js integration, dynamic `.csl` fetching + caching  | done  |
-| 3    | Lookup APIs — URL scraping, Crossref, Open Library          | next  |
-| 4    | UI — sidebar, citation table, Autocite bar, manual entry    | —     |
+| 3    | Lookup APIs — URL scraping, Crossref, Open Library          | done  |
+| 4    | UI — sidebar, citation table, Autocite bar, manual entry    | next  |
 | 5    | Export — HTML, `.docx`, BibTeX, RIS                         | —     |
 
 ## Quick start
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173
-npm run dev:api      # serverless functions on :3001 (needs `vercel`)
-npm test             # 31 tests: reducer, Dexie schema, style registry, rendering
+npm run dev          # http://localhost:5173 — serves the lookup API too
+npm test             # 114 tests across all three workspaces
 npm run typecheck
 ```
+
+The serverless functions run inside the Vite dev server, so there is no second
+process and no CORS to configure. Two optional environment variables are worth
+setting in production — see `apps/api/.env.example`.
 
 To run without a CDN — offline installs, or networks that block third-party
 requests — vendor the styles you ship:
@@ -65,6 +68,11 @@ per-user storage cost to recoup.
 **CSL-JSON all the way down.** Citations are stored in exactly the shape
 citeproc-js consumes, so nothing is transformed on the way to the formatter and
 every exporter maps out of one canonical model.
+
+**Ask once.** Crossref, Open Library and the CSL repository are free services
+run for the community. Every lookup is cached in the browser and keyed by a
+normalised identifier shared by client and server, so pasting the same DOI
+twice — in another project, or a week later — sends no request at all.
 
 **The style decides the layout, not the stylesheet.** APA wants a hanging
 indent; IEEE wants a flush-left `[1]` gutter. citeproc reports which in its

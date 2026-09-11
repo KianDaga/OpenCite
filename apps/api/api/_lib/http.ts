@@ -47,7 +47,57 @@ export function param(request: Request, name: string): string | undefined {
   return value ? value : undefined;
 }
 
-/** Placeholder until Step 3 wires up the real resolvers. */
-export function notImplemented(route: string): Response {
-  return fail('internal', `${route} is implemented in Step 3.`, 501);
+/**
+ * Identifies OpenCite to the services it queries. Crossref and Open Library
+ * both ask for this, and Crossref gives requests with a contact address
+ * priority routing — so `CROSSREF_MAILTO` is worth setting in production.
+ */
+export const USER_AGENT = (() => {
+  const mailto = process.env.CROSSREF_MAILTO;
+  const base = 'OpenCite/0.1 (+https://github.com/kiandaga/opencite)';
+  return mailto ? `${base} mailto:${mailto}` : base;
+})();
+
+export const DEFAULT_TIMEOUT_MS = 8_000;
+
+/**
+ * `fetch` with a deadline.
+ *
+ * A serverless function is billed by the second and killed at its limit, so an
+ * upstream that hangs must not take the whole request down with it. Each hop
+ * gets its own budget and failure is reported, not waited out.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  init: RequestInit & { timeoutMs?: number } = {},
+): Promise<Response> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...rest } = init;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...rest,
+      signal: controller.signal,
+      headers: { 'User-Agent': USER_AGENT, ...(rest.headers as Record<string, string>) },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Fetches JSON, returning `undefined` for any non-200 or unparseable body. */
+export async function fetchJSON<T>(
+  url: string,
+  init?: RequestInit & { timeoutMs?: number },
+): Promise<T | undefined> {
+  try {
+    const response = await fetchWithTimeout(url, {
+      ...init,
+      headers: { Accept: 'application/json', ...(init?.headers as Record<string, string>) },
+    });
+    if (!response.ok) return undefined;
+    return (await response.json()) as T;
+  } catch {
+    return undefined;
+  }
 }

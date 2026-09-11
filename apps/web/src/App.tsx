@@ -1,4 +1,5 @@
 import { STYLE_CATALOG } from '@/citation';
+import { AutociteBar } from '@/components/AutociteBar';
 import { BibliographyView } from '@/components/Bibliography';
 import { useActiveProject, useCitations, useLibraryActions, useLibraryState } from '@/state';
 import { SAMPLE_REFERENCES } from '@/lib/sampleData';
@@ -42,10 +43,12 @@ export default function App() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">OpenCite</h1>
         <p className="text-sm text-muted-foreground">
-          Step 2 — citeproc-js and the CSL style registry are live. The interface arrives
-          in Step 4.
+          Step 3 — paste a URL, DOI or ISBN and the metadata is fetched for you. The real
+          interface arrives in Step 4.
         </p>
       </header>
+
+      <AutociteBar />
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-1.5">

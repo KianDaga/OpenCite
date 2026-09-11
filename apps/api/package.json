@@ -5,13 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev --listen 3001",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@opencite/shared": "*"
+    "@opencite/shared": "*",
+    "cheerio": "^1.2.0",
+    "metascraper": "^5.56.2",
+    "metascraper-author": "^5.56.2",
+    "metascraper-date": "^5.56.2",
+    "metascraper-description": "^5.56.2",
+    "metascraper-lang": "^5.56.2",
+    "metascraper-publisher": "^5.56.2",
+    "metascraper-title": "^5.56.2",
+    "metascraper-url": "^5.56.2"
   },
   "devDependencies": {
     "@types/node": "^22.8.6",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^5.0.0"
   }
 }

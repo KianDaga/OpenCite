@@ -152,17 +152,43 @@ export async function trashedCitations(): Promise<Citation[]> {
 }
 
 /**
- * Finds an existing citation with the same normalised source key, so pasting
- * the same DOI twice can offer "already in this project" instead of silently
- * duplicating.
+ * Finds a reference the project already holds.
+ *
+ * Matching on the source key alone is not enough: a DOI pasted directly and
+ * the publisher's page for the same paper normalise to different keys
+ * (`doi:10.1038/…` and `url:https://nature.com/…`), so the paper lands twice
+ * and the bibliography disambiguates them into "2013a" and "2013b" — which
+ * looks like two papers by the same authors in the same year.
+ *
+ * So the published identifiers are checked too. A DOI or ISBN is the same work
+ * however the reader arrived at it.
  */
+export async function findExisting(
+  projectId: string,
+  candidate: { key?: string; doi?: string; isbn?: string },
+): Promise<Citation | undefined> {
+  const key = candidate.key;
+  const doi = candidate.doi?.toLowerCase();
+  const isbn = candidate.isbn?.replace(/[\s-]/g, '');
+  if (!key && !doi && !isbn) return undefined;
+
+  return db.citations
+    .where({ projectId, trashed: 0 })
+    .filter((c) => {
+      if (key && c.source.key === key) return true;
+      if (doi && typeof c.csl.DOI === 'string' && c.csl.DOI.toLowerCase() === doi) return true;
+      if (isbn && typeof c.csl.ISBN === 'string' && c.csl.ISBN.replace(/[\s-]/g, '') === isbn) {
+        return true;
+      }
+      return false;
+    })
+    .first();
+}
+
+/** Back-compat shorthand for a source-key-only check. */
 export async function findBySourceKey(
   projectId: string,
   key: string,
 ): Promise<Citation | undefined> {
-  if (!key) return undefined;
-  return db.citations
-    .where({ projectId, trashed: 0 })
-    .filter((c) => c.source.key === key)
-    .first();
+  return findExisting(projectId, { key });
 }

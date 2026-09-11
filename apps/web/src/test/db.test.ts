@@ -120,3 +120,49 @@ describe('dexie schema', () => {
     expect(await db.citations.get(id)).toBeDefined();
   });
 });
+
+describe('duplicate detection', () => {
+  beforeEach(async () => {
+    await db.open();
+    await resetDatabase();
+  });
+
+  it('recognises the same work arriving by DOI and by its publisher page', async () => {
+    const projectId = await seedProject();
+    await repo.createCitation({
+      projectId,
+      csl: { type: 'article-journal', title: 'A paper', DOI: '10.1038/nature12373' },
+      source: { kind: 'doi', input: '10.1038/nature12373', key: 'doi:10.1038/nature12373' },
+    });
+
+    // Reached from the publisher's page this time, so a different source key —
+    // but the DOI says it is the same paper.
+    const found = await repo.findExisting(projectId, {
+      key: 'url:https://www.nature.com/articles/nature12373',
+      doi: '10.1038/NATURE12373',
+    });
+
+    expect(found?.csl.title).toBe('A paper');
+  });
+
+  it('matches a book across ISBN formatting', async () => {
+    const projectId = await seedProject();
+    await repo.createCitation({
+      projectId,
+      csl: { type: 'book', title: 'A book', ISBN: '9780226025988' },
+    });
+
+    expect(await repo.findExisting(projectId, { isbn: '978-0-226-02598-8' })).toBeDefined();
+  });
+
+  it('does not treat unrelated references as duplicates', async () => {
+    const projectId = await seedProject();
+    await repo.createCitation({
+      projectId,
+      csl: { type: 'book', title: 'A book', ISBN: '9780226025988' },
+    });
+
+    expect(await repo.findExisting(projectId, { isbn: '9780306406157' })).toBeUndefined();
+    expect(await repo.findExisting(projectId, {})).toBeUndefined();
+  });
+});

@@ -1,16 +1,30 @@
-import { fail, notImplemented, param, preflight } from '../_lib/http';
+import { fail, ok, param, preflight } from '../_lib/http';
+import { PageFetchError, lookup } from '../_lib/resolvers';
 
 /**
  * GET /api/lookup?query=…
  *
- * The one endpoint the Autocite bar calls. Step 3 sniffs whether the input is
- * a DOI, ISBN, PMID, arXiv id or URL and delegates to the matching resolver,
- * so the frontend never has to guess what the user pasted.
+ * The single endpoint the Autocite bar calls. Works out whether the input is a
+ * DOI, ISBN, arXiv id or URL and answers with CSL-JSON.
+ *
+ * "Found nothing" is a 200 with an empty `results` array and a message: an
+ * unknown DOI is a normal outcome, not a server failure, and a client should
+ * only treat non-2xx as something being broken.
  */
-export default function handler(request: Request): Response {
+export default async function handler(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return preflight();
-  if (!param(request, 'query')) {
-    return fail('bad_request', 'Missing required "query" parameter.');
+
+  const query = param(request, 'query');
+  if (!query) return fail('bad_request', 'Missing required "query" parameter.');
+  if (query.length > 2000) return fail('bad_request', 'That query is too long.');
+
+  try {
+    return ok(await lookup(query));
+  } catch (error) {
+    if (error instanceof PageFetchError) {
+      const status = error.code === 'blocked_url' ? 400 : error.code === 'not_found' ? 404 : 502;
+      return fail(error.code === 'unsupported_type' ? 'bad_request' : error.code, error.message, status);
+    }
+    return fail('internal', 'The lookup failed unexpectedly. Please try again.', 500);
   }
-  return notImplemented('/api/lookup');
 }

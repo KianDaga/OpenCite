@@ -215,8 +215,15 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         const projectId = requireProject();
         if (!projectId) return undefined;
 
-        if (!options.allowDuplicate && options.source?.key) {
-          const existing = await repo.findBySourceKey(projectId, options.source.key);
+        if (!options.allowDuplicate) {
+          // Match on the published identifiers as well as the source key: the
+          // same paper reached by DOI and by its publisher page normalises to
+          // two different keys but is still one reference.
+          const existing = await repo.findExisting(projectId, {
+            ...(options.source?.key ? { key: options.source.key } : {}),
+            ...(typeof csl.DOI === 'string' ? { doi: csl.DOI } : {}),
+            ...(typeof csl.ISBN === 'string' ? { isbn: csl.ISBN } : {}),
+          });
           if (existing) {
             dispatch({ type: 'inspect', id: existing.id });
             return existing.id;

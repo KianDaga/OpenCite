@@ -71,6 +71,9 @@ opencite/
 │       ├── styles/globals.css      design tokens + .csl-entry rules
 │       └── test/                   reducer + schema tests
 │
+│       ├── lookup/
+│       │   ├── client.ts           API calls + metadataCache
+│       │   └── useLookup.ts        Autocite state machine
 │       ├── citation/
 │       │   ├── cslSource.ts        candidate URLs + response validation
 │       │   ├── styleRegistry.ts    fetch, follow parents, two-tier cache
@@ -250,13 +253,87 @@ what the numeric-layout test now guards.
 The library is ~376 KB minified. A dynamic `import()` keeps it in its own
 chunk, so nothing is downloaded until there is something to format.
 
-## 6. What the later steps plug into
+## 6. The lookup layer
+
+### One box, and the server works out what was in it
+
+`identify()` lives in `packages/shared` precisely so both sides use the same
+function: the browser needs it to compute a cache key *before* deciding whether
+to make a request, and the server needs it to route. Two copies of that logic
+would drift, and the symptom would be a cache that silently never hits.
+
+Order matters. A DOI found anywhere in the input wins — including inside a
+`doi.org` or publisher URL — because scraping a landing page when the registry
+record is one request away gives worse metadata for more work. ISBNs are
+accepted only when the **check digit validates**: plenty of thirteen-digit
+numbers are not ISBNs, and looking one up returns a confidently wrong book
+rather than an honest "not found". arXiv ids resolve through the DOI arXiv
+mints for every paper (`10.48550/arXiv.*`), so they need no parser of their own.
+
+### Resolver order is authority, not a race
+
+| Kind | Order                                                        |
+| ---- | ------------------------------------------------------------ |
+| DOI  | Crossref → DataCite                                           |
+| ISBN | Open Library → Google Books                                   |
+| URL  | Highwire `citation_*` → JSON-LD → Dublin Core → OG → metascraper |
+
+Resolvers run in sequence and stop at the first real answer. A Crossref record
+and a Google Books guess are not two opinions to weigh — one is simply better.
+Racing them would also send every lookup to every service, which is a poor way
+to treat free APIs.
+
+Open Library is primary for ISBNs because unauthenticated Google Books requests
+share a per-address daily quota and start returning HTTP 429. That is not a
+foundation for a service that promises to be unlimited.
+
+### Scraping: metascraper is the floor, not the ceiling
+
+Metascraper is very good at "what is this article and who wrote it", which is
+why it handles the fallback layer. But it is built for content, not citations:
+it has no notion of a journal name, a volume, an issue or a DOI. Publishers do
+expose exactly that, through the Highwire Press `citation_*` tags that Google
+Scholar reads, plus Dublin Core and schema.org — so those are read first and
+metascraper fills the gaps.
+
+And if the page names a DOI, the page is abandoned in favour of the registry.
+
+Two things that look like paranoia and are not:
+
+- **Placeholder authors are filtered.** citationstyles.org ships
+  `<meta name="author" content="Your Name">` — the unedited Jekyll default.
+  Without the filter, every citation of that page credits a person called Your
+  Name.
+- **A site name equal to the title is dropped.** Many sites set `og:site_name`
+  to the same string as `og:title`, and printing both reads as a mistake in
+  every style.
+
+### The URL endpoint is the dangerous one
+
+It fetches an address chosen by the caller, from inside our infrastructure.
+Unguarded that is server-side request forgery: `http://169.254.169.254/` serves
+cloud instance credentials, `http://localhost:6379/` reaches a Redis on the same
+host, `file://` reads the disk.
+
+So the scheme is restricted to http(s), embedded credentials are refused,
+internal hostnames are blocked, the hostname is resolved and every resulting
+address is checked against the private, loopback, link-local, CGNAT and
+multicast ranges — and redirects are followed **by hand** so each hop is checked
+again, because a public hostname is free to redirect to a private one. Bodies
+are capped while streaming rather than after, since `response.text()` on a huge
+file exhausts the function's memory before any length check could run.
+
+### Duplicates are matched on identifiers, not just source keys
+
+A DOI pasted directly and the publisher's page for the same paper normalise to
+different cache keys, so the same work landed twice and the bibliography
+disambiguated them into "2013a" and "2013b" — which reads as two different
+papers. Published identifiers (DOI, ISBN) are now checked as well, since a DOI
+is the same work however the reader arrived at it.
+
+## 7. What the later steps plug into
 
 Each remaining step attaches to a seam that already exists.
-
-**Step 3 — lookups.** `LookupResponse` is fixed, the routes answer 501, and
-`CitationSource.key` is already the `metadataCache` primary key. Duplicate
-detection (`findBySourceKey`) is written and waiting.
 
 **Step 4 — UI.** `useFolderTree()` returns the sidebar tree with rolled-up
 counts; `useCitations()` returns the table rows; `DialogState` enumerates every
