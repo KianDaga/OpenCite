@@ -35,17 +35,23 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
+      # Only the workspaces that make up the deployed site. Installing
+      # apps/api as well would pull in metascraper's `re2`, a native module
+      # that has to be compiled on the runner — a build step, and a way for the
+      # deploy to fail, for code that is not being deployed.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --workspace @opencite/web --workspace @opencite/shared --include-workspace-root
 
       - name: Typecheck
-        run: npm run typecheck
+        run: npm run typecheck --workspace @opencite/web
 
+      # The gate for this deploy is the artifact it publishes. The lookup
+      # functions have their own suite; they belong in a CI workflow, not here.
       - name: Test
-        run: npm test --workspaces --if-present
+        run: npm test --workspace @opencite/web
 
       # Ships the common styles with the site so formatting does not depend on
       # a third-party CDN at runtime — which matters on networks that block
