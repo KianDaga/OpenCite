@@ -47,11 +47,24 @@ const DEFAULT_STYLES = [
 
 const DEFAULT_LOCALES = ['en-US', 'en-GB', 'de-DE', 'fr-FR', 'es-ES', 'it-IT', 'nl-NL', 'pt-BR'];
 
+/**
+ * Every request gets a deadline.
+ *
+ * Without one a hung connection blocks this script forever, and a build step
+ * that hangs is worse than one that fails: CI has no way to tell it apart from
+ * slow work, so it sits there until the job's timeout — six hours, by default.
+ * Failing fast lets the caller fall back to the CDN at runtime.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function download(label, urls) {
   for (const url of urls) {
-    const response = await fetch(url).catch(() => null);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }).catch(() => null);
+
     if (response?.ok) {
-      const text = await response.text();
+      const text = await response.text().catch(() => '');
       if (text.trimStart().startsWith('<')) return text;
     }
   }
@@ -68,7 +81,17 @@ async function main() {
   let ok = 0;
   const failed = [];
 
+  // If the very first style cannot be reached, the CSL repository is not
+  // available from here — stop rather than spending a request timeout on each
+  // of the thirty that follow. Vendoring is an optimisation; the app falls
+  // back to the CDN at runtime, so giving up quickly costs nothing.
+  let reachable = true;
+
   for (const id of styles) {
+    if (!reachable) {
+      failed.push(`${id}: skipped, the CSL repository is unreachable`);
+      continue;
+    }
     try {
       // Dependent styles live in their own directory; try both.
       const xml = await download(`style ${id}`, [
@@ -90,10 +113,15 @@ async function main() {
       ok += 1;
     } catch (error) {
       failed.push(`${id}: ${error.message}`);
+      if (ok === 0) reachable = false;
     }
   }
 
   for (const id of DEFAULT_LOCALES) {
+    if (!reachable) {
+      failed.push(`locale ${id}: skipped, the CSL repository is unreachable`);
+      continue;
+    }
     try {
       const xml = await download(`locale ${id}`, [`${LOCALES_CDN}/locales-${id}.xml`]);
       await writeFile(join(ROOT, 'public/csl/locales', `locales-${id}.xml`), xml);

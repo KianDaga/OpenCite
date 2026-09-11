@@ -21,15 +21,21 @@ permissions:
   # Required by actions/deploy-pages to mint its deployment token.
   id-token: write
 
-# One deployment at a time; queue rather than cancel, so a run that is already
-# publishing is never left half-applied.
+# One deployment at a time. A newer push supersedes an older run rather than
+# queueing behind it: queueing sounds safer, but it means one stuck run blocks
+# every deploy after it — which is exactly what happened the first time this
+# ran, with no way to clear it except waiting out the job timeout.
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Nothing here takes more than a couple of minutes; anything that runs for
+    # ten is stuck, and should say so rather than burning six hours of the
+    # default.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +65,10 @@ jobs:
       # the app still falls back to the CDN in the browser.
       - name: Vendor CSL styles
         continue-on-error: true
+        # Belt and braces: the script gives each request a deadline, and the
+        # step has one of its own. `continue-on-error` forgives a failure but
+        # not a hang, and a hung step runs until the job timeout — six hours.
+        timeout-minutes: 4
         run: npm run fetch:styles --workspace @opencite/web
 
       - name: Build
