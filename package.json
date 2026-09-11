@@ -1,0 +1,30 @@
+{
+  "name": "opencite",
+  "private": true,
+  "version": "0.1.0",
+  "description": "OpenCite — a free, unlimited, ad-free, local-first citation generator built on citeproc-js and the official CSL style repository.",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/api",
+    "packages/shared"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @opencite/web",
+    "dev:api": "npm run dev --workspace @opencite/api",
+    "build": "npm run build --workspace @opencite/shared && npm run build --workspace @opencite/web",
+    "preview": "npm run preview --workspace @opencite/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  }
+}
