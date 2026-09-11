@@ -70,15 +70,17 @@ the fix is one setting: **Settings → Pages → Source → GitHub Actions**.
 It also vendors the common CSL styles into the build, so the published site
 formats references with no third-party requests at all.
 
-**Pages serves static files, so the lookup functions do not run there.** The
-library, the formatting and every export work entirely in the browser. The
-build tells the app so (`VITE_LOOKUP_ENABLED=false`), and the Autocite bar is
-replaced by a short explanation and a button that does work — rather than
-offering a search box that fails on every use.
+**Pages serves static files, so the lookup functions do not run there** — but
+autocite still does. With `VITE_LOOKUP_ENABLED=false` the browser queries
+Crossref, Open Library and DataCite directly, which resolves DOIs, ISBNs, arXiv
+ids and title searches. The library, the formatting and every export were
+always browser-side.
 
-For automatic lookups as well, deploy `apps/api` somewhere that runs functions
-(Vercel, Netlify, Cloudflare Workers, a plain Node server) and build with
-`VITE_API_BASE_URL` pointing at it and `VITE_LOOKUP_ENABLED` unset.
+The exception is citing a **web page**: a browser cannot fetch an arbitrary URL,
+so that needs `apps/api` deployed somewhere that runs functions (Vercel,
+Netlify, Cloudflare Workers, a plain Node server) with `VITE_API_BASE_URL`
+pointing at it and `VITE_LOOKUP_ENABLED` unset. Without it, the address and
+access date are filled into the manual form instead.
 
 | Variable              | Meaning                                                     |
 | --------------------- | ----------------------------------------------------------- |
